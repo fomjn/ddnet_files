@@ -118,6 +118,11 @@ body::before {
 }
 
 .copy-toast.show { opacity: 1; }
+  
+input {
+  caret-color: transparent !important;
+}
+
 </style>
 </head>
 
@@ -144,12 +149,14 @@ body::before {
 <script>
 let data = null;
 let path = [];
-let currentItems = [];
 
-/* ===== НАВИГАЦИЯ ===== */
+/* ===== ПОЛУЧИТЬ ТЕКУЩУЮ ПАПКУ ===== */
 function getFolder() {
   let cur = data;
-  for (let p of path) cur = cur[p];
+  for (let p of path) {
+    if (!cur[p]) return {};
+    cur = cur[p];
+  }
   return cur;
 }
 
@@ -159,55 +166,50 @@ function render() {
   container.innerHTML = "";
 
   const folder = getFolder();
-  currentItems = [];
 
-  // назад
+  // НАЗАД
   if (path.length) {
-    const back = createRow("📁 ../", "", "", () => {
+    const back = row("📁 ../", "", "", () => {
       path.pop();
       render();
     });
     container.appendChild(back);
   }
 
-  // папки
-  for (let key in folder) {
-    if (key === "_files") continue;
+  // ПАПКИ
+  Object.keys(folder).forEach(key => {
+    if (key === "_files") return;
 
-    currentItems.push({name: key, type: "folder"});
-
-    const row = createRow("📁 " + key, "", "", () => {
+    const r = row("📁 " + key, "", "", () => {
       path.push(key);
       render();
     });
 
-    container.appendChild(row);
-  }
+    container.appendChild(r);
+  });
 
-  // файлы
+  // ФАЙЛЫ
   if (folder._files) {
     folder._files.forEach(f => {
-      currentItems.push({name: f.name, type: "file"});
-
-      const row = createRow("📄 " + f.name, f.size, f.date, () => {
+      const r = row("📄 " + f.name, f.size || "", f.date || "", () => {
         navigator.clipboard.writeText(f.name);
         showToast();
       });
 
-      container.appendChild(row);
+      container.appendChild(r);
     });
   }
 }
 
-/* ===== СТРОКА ===== */
-function createRow(name, size, date, click) {
+/* ===== СОЗДАНИЕ СТРОКИ ===== */
+function row(name, size, date, click) {
   const div = document.createElement("div");
   div.className = "file";
 
   div.innerHTML = `
     <div class="name">${name}</div>
-    <div class="size">${size || ""}</div>
-    <div class="date">${date || ""}</div>
+    <div class="size">${size}</div>
+    <div class="date">${date}</div>
   `;
 
   div.onclick = click;
@@ -222,25 +224,30 @@ document.getElementById("search").addEventListener("input", e => {
 
   const folder = getFolder();
 
-  // фильтр папок
-  for (let key in folder) {
-    if (key === "_files") continue;
-    if (key.toLowerCase().includes(q)) {
-      container.appendChild(createRow("📁 " + key, "", "", () => {
-        path.push(key);
-        render();
-      }));
-    }
-  }
+  // ПАПКИ
+  Object.keys(folder).forEach(key => {
+    if (key === "_files") return;
 
-  // фильтр файлов
+    if (key.toLowerCase().includes(q)) {
+      container.appendChild(
+        row("📁 " + key, "", "", () => {
+          path.push(key);
+          render();
+        })
+      );
+    }
+  });
+
+  // ФАЙЛЫ
   if (folder._files) {
     folder._files.forEach(f => {
       if (f.name.toLowerCase().includes(q)) {
-        container.appendChild(createRow("📄 " + f.name, f.size, f.date, () => {
-          navigator.clipboard.writeText(f.name);
-          showToast();
-        }));
+        container.appendChild(
+          row("📄 " + f.name, f.size || "", f.date || "", () => {
+            navigator.clipboard.writeText(f.name);
+            showToast();
+          })
+        );
       }
     });
   }
@@ -255,23 +262,17 @@ function showToast() {
 
 /* ===== ЗАГРУЗКА ===== */
 fetch("./structure.json")
-  .then(r => {
-    if (!r.ok) {
-      throw new Error("structure.json НЕ найден");
-    }
-    return r.json();
-  })
+  .then(r => r.json())
   .then(json => {
-    console.log("JSON загружен:", json);
+    console.log("JSON OK", json);
     data = json;
     render();
   })
   .catch(err => {
-    document.getElementById("files").innerHTML =
-      "<div style='padding:20px;color:red'>Ошибка загрузки structure.json</div>";
     console.error(err);
+    document.getElementById("files").innerHTML =
+      "<div style='padding:20px;color:red'>Ошибка загрузки JSON</div>";
   });
-  
 </script>
 
 </body>
