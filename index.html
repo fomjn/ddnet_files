@@ -1,77 +1,183 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>File Browser</title>
-
+<title>fomjn</title>
 <style>
-body {
-    background: #0f1115;
-    color: #e6e6e6;
-    font-family: Arial;
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #111;
+    color: #eee;
     padding: 20px;
-}
+  }
 
-.folder {
+  h1.file-browser-header {
+    font-size: 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+  }
+
+  .header-logo {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+  }
+
+  ul.folder-tree {
+    list-style: none;
+    padding-left: 20px;
+  }
+
+  ul.folder-tree li {
+    margin: 2px 0;
     cursor: pointer;
-    color: #6ab0ff;
-    margin-left: 10px;
-}
+    position: relative;
+    padding-left: 5px;
+  }
 
-.file {
-    margin-left: 25px;
-    color: #ccc;
-}
-
-.hidden {
+  ul.folder-tree li ul {
     display: none;
-}
+  }
+
+  ul.folder-tree li.open > ul {
+    display: block;
+  }
+
+  ul.folder-tree li.folder::before {
+    content: "📁 ";
+    margin-right: 5px;
+  }
+
+  ul.folder-tree li.file::before {
+    content: "📄 ";
+    margin-right: 5px;
+  }
+
+  ul.folder-tree li:hover {
+    background-color: rgba(0,128,255,0.1);
+  }
+
+  .file-size {
+    font-size: 0.8em;
+    color: #999;
+    margin-left: 8px;
+  }
+
+  .file-count {
+    font-size: 0.85em;
+    color: #ccc;
+    margin-left: 4px;
+  }
 </style>
 </head>
-
 <body>
 
-<h2>📁 File Browser</h2>
+<h1 class="file-browser-header">
+  <img src="logo.png" alt="logo" class="header-logo">
+  📁 fomjn
+</h1>
 
-<div id="tree"></div>
+<ul class="folder-tree" id="fileTree"></ul>
 
 <script>
-fetch('structure.json')
-.then(res => res.json())
-.then(data => {
-    document.getElementById("tree").appendChild(render(data));
-});
+  const fileStructure = {
+    "demos": {
+      "DDNet": {
+        "Solo": [
+          {name: "1Hook_185.340_fomjn.demo", size: "4.2 MB"},
+          {name: "Euthanasia_168.080_fomjn.demo", size: "3.1 MB"}
+        ],
+        "Race": [
+          {name: "RaceMap1_123.456.demo", size: "2.0 MB"}
+        ]
+      },
+      "DDROCK": {
+        "Solo": [],
+        "Race": []
+      },
+      "KoG": {
+        "Solo": []
+      },
+      "Unique": {
+        "Short": [],
+        "Middle": [],
+        "Long": [],
+        "Fastcap": []
+      }
+    },
+    "ghosts": {
+      "DDNet": {
+        "Solo": [],
+        "Race": []
+      },
+      "DDROCK": {
+        "Solo": [],
+        "Race": []
+      },
+      "KoG": {
+        "Solo": []
+      },
+      "Unique": {
+        "Short": [],
+        "Middle": [],
+        "Long": [],
+        "Fastcap": []
+      }
+    }
+  };
 
-function render(node) {
-    let el = document.createElement("div");
+  function buildTree(container, structure) {
+    Object.entries(structure).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length === 0) return;
+        value.forEach(file => {
+          if(file.name.toLowerCase() === 'desktop.ini') return;
+          const li = document.createElement('li');
+          li.classList.add('file');
+          li.textContent = file.name;
+          const span = document.createElement('span');
+          span.classList.add('file-size');
+          span.textContent = file.size;
+          li.appendChild(span);
+          container.appendChild(li);
+        });
+      } else {
+        const li = document.createElement('li');
+        li.classList.add('folder');
+        li.textContent = key;
 
-    if (node.type === "folder") {
-        let title = document.createElement("div");
-        title.textContent = "📁 " + node.name;
-        title.className = "folder";
+        let count = countFiles(value);
+        const countSpan = document.createElement('span');
+        countSpan.classList.add('file-count');
+        countSpan.textContent = `(${count})`;
+        li.appendChild(countSpan);
 
-        let children = document.createElement("div");
-        children.className = "hidden";
+        const ul = document.createElement('ul');
+        buildTree(ul, value);
+        li.appendChild(ul);
 
-        title.onclick = () => {
-            children.classList.toggle("hidden");
-        };
-
-        node.children.forEach(child => {
-            children.appendChild(render(child));
+        li.addEventListener('click', (e) => {
+          e.stopPropagation();
+          li.classList.toggle('open');
         });
 
-        el.appendChild(title);
-        el.appendChild(children);
-    } else {
-        let file = document.createElement("div");
-        file.textContent = "📄 " + node.name;
-        file.className = "file";
-        el.appendChild(file);
-    }
+        container.appendChild(li);
+      }
+    });
+  }
 
-    return el;
-}
+  function countFiles(structure) {
+    let total = 0;
+    Object.values(structure).forEach(value => {
+      if (Array.isArray(value)) total += value.filter(f=>f.name.toLowerCase()!=='desktop.ini').length;
+      else total += countFiles(value);
+    });
+    return total;
+  }
+
+  const treeContainer = document.getElementById('fileTree');
+  buildTree(treeContainer, fileStructure);
 </script>
 
 </body>
