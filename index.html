@@ -20,9 +20,10 @@ body::before {
   position: fixed;
   width: 200%;
   height: 200%;
-  background: url("bg_v2.png");
+  background:
+    linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
+    url("bg.png?v=2");
   background-size: 128px 64px;
-  opacity: 0.08;
   animation: moveBg 40s linear infinite;
   z-index: -1;
 }
