@@ -19,32 +19,21 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: url("bg_v3.png") repeat;
-  background-size: 128px 128px;
-  animation: moveBg 20s linear infinite;
-  opacity: 0.25;
-  z-index: -2;
-}
 
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
   background: url("bg_v3.png") repeat;
   background-size: 128px 128px;
-  animation: moveBg2 35s linear infinite;
-  opacity: 0.15;
+
+  animation: moveBg 15s linear infinite;
+
+  opacity: 0.12; /* вот это ключ */
+  filter: brightness(0.5) contrast(1.2);
+
   z-index: -1;
 }
 
 @keyframes moveBg {
   from { background-position: 0 0; }
   to { background-position: 0 128px; }
-}
-
-@keyframes moveBg2 {
-  from { background-position: 0 0; }
-  to { background-position: 128px 0; }
 }
 
 /* === КОНТЕЙНЕР === */
