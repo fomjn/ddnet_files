@@ -121,6 +121,7 @@ body::before {
   
 input {
   caret-color: transparent !important;
+  cursor: url("cursor.png"), auto !important;
 }
 
 </style>
@@ -147,61 +148,44 @@ input {
 <div id="toast" class="copy-toast">Copied</div>
 
 <script>
-let data = null;
-let path = [];
-
-/* ===== ПОЛУЧИТЬ ТЕКУЩУЮ ПАПКУ ===== */
-function getFolder() {
-  let cur = data;
-  for (let p of path) {
-    if (!cur[p]) return {};
-    cur = cur[p];
-  }
-  return cur;
-}
+let root = null;
+let current = null;
 
 /* ===== РЕНДЕР ===== */
-function render() {
+function render(folder) {
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  const folder = getFolder();
-
   // НАЗАД
-  if (path.length) {
-    const back = row("📁 ../", "", "", () => {
-      path.pop();
-      render();
-    });
-    container.appendChild(back);
+  if (folder.parent) {
+    container.appendChild(row("📁 ../", "", "", () => {
+      render(folder.parent);
+    }));
   }
 
-  // ПАПКИ
-  Object.keys(folder).forEach(key => {
-    if (key === "_files") return;
+  folder.children.forEach(item => {
 
-    const r = row("📁 " + key, "", "", () => {
-      path.push(key);
-      render();
-    });
+    if (item.type === "folder") {
+      container.appendChild(
+        row("📁 " + item.name, "", "", () => {
+          render(item);
+        })
+      );
+    }
 
-    container.appendChild(r);
+    if (item.type === "file") {
+      container.appendChild(
+        row("📄 " + item.name, item.size || "", item.date || "", () => {
+          navigator.clipboard.writeText(item.name);
+          showToast();
+        })
+      );
+    }
+
   });
-
-  // ФАЙЛЫ
-  if (folder._files) {
-    folder._files.forEach(f => {
-      const r = row("📄 " + f.name, f.size || "", f.date || "", () => {
-        navigator.clipboard.writeText(f.name);
-        showToast();
-      });
-
-      container.appendChild(r);
-    });
-  }
 }
 
-/* ===== СОЗДАНИЕ СТРОКИ ===== */
+/* ===== СТРОКА ===== */
 function row(name, size, date, click) {
   const div = document.createElement("div");
   div.className = "file";
@@ -216,42 +200,37 @@ function row(name, size, date, click) {
   return div;
 }
 
-/* ===== ПОИСК ===== */
+/* ===== SEARCH ===== */
 document.getElementById("search").addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  const folder = getFolder();
+  if (!current) return;
 
-  // ПАПКИ
-  Object.keys(folder).forEach(key => {
-    if (key === "_files") return;
-
-    if (key.toLowerCase().includes(q)) {
+  current.children.forEach(item => {
+    if (item.name.toLowerCase().includes(q)) {
       container.appendChild(
-        row("📁 " + key, "", "", () => {
-          path.push(key);
-          render();
-        })
+        row(
+          (item.type === "folder" ? "📁 " : "📄 ") + item.name,
+          item.size || "",
+          item.date || "",
+          () => {
+            if (item.type === "folder") render(item);
+          }
+        )
       );
     }
   });
-
-  // ФАЙЛЫ
-  if (folder._files) {
-    folder._files.forEach(f => {
-      if (f.name.toLowerCase().includes(q)) {
-        container.appendChild(
-          row("📄 " + f.name, f.size || "", f.date || "", () => {
-            navigator.clipboard.writeText(f.name);
-            showToast();
-          })
-        );
-      }
-    });
-  }
 });
+
+/* ===== PARENT LINKS ===== */
+function linkParents(node, parent=null) {
+  node.parent = parent;
+  if (node.children) {
+    node.children.forEach(child => linkParents(child, node));
+  }
+}
 
 /* ===== TOAST ===== */
 function showToast() {
@@ -260,13 +239,14 @@ function showToast() {
   setTimeout(() => t.classList.remove("show"), 800);
 }
 
-/* ===== ЗАГРУЗКА ===== */
+/* ===== LOAD ===== */
 fetch("./structure.json")
   .then(r => r.json())
   .then(json => {
-    console.log("JSON OK", json);
-    data = json;
-    render();
+    root = json;
+    linkParents(root);
+    current = root;
+    render(root);
   })
   .catch(err => {
     console.error(err);
