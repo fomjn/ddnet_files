@@ -4,48 +4,42 @@
 <meta charset="UTF-8">
 <title>fomjn</title>
 
-<link rel="icon" type="image/png" href="logo.png">
+<link rel="icon" href="logo.png">
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   height: 100%;
-  font-family: Arial, sans-serif;
+  font-family: Arial;
   color: #ddd;
-
   cursor: url("cursor.png") 0 0, auto;
 }
 
-/* фикс курсора для ВСЕГО */
-input, div, * {
-  cursor: url("cursor.png") 0 0, auto !important;
-}
+/* фикс курсора ВЕЗДЕ */
+* { cursor: url("cursor.png") 0 0, auto !important; }
 
-/* ===== ФОН ===== */
+/* фон */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
 
   background: url("bg_v3.png") repeat;
-  background-size: 128px 128px;
-
-  animation: moveBg 6s linear infinite;
+  background-size: 128px;
+  animation: bg 6s linear infinite;
   filter: brightness(0.25);
 
   z-index: -1;
 }
 
-@keyframes moveBg {
+@keyframes bg {
   from { background-position: 0 0; }
   to { background-position: 0 128px; }
 }
 
-/* ===== FULLSCREEN ===== */
+/* контейнер */
 .container {
   width: 100%;
   height: 100%;
@@ -53,47 +47,37 @@ body::before {
   flex-direction: column;
 }
 
-/* ===== HEADER ===== */
+/* header */
 .header {
   display: flex;
   padding: 10px;
   background: linear-gradient(#5f6368, #3a3d42);
-  font-weight: bold;
 }
 
-.header div {
-  flex: 1;
-}
+.header div { flex: 1; }
 
-/* ===== LIST ===== */
+/* список */
 .file-list {
   flex: 1;
   overflow-y: auto;
 }
 
-/* ===== ROW ===== */
+/* строка */
 .file {
   display: flex;
-  align-items: center;
   padding: 6px 10px;
 }
 
 .file:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.1);
 }
 
 .file.active {
-  background: #e6e6e6;
+  background: #fff;
   color: #000;
 }
 
-/* ===== ICON ===== */
-.icon {
-  width: 16px;
-  margin-right: 8px;
-}
-
-/* ===== COLS ===== */
+/* колонки */
 .name {
   flex: 3;
   white-space: nowrap;
@@ -101,10 +85,10 @@ body::before {
   text-overflow: ellipsis;
 }
 
-.length { flex: 1; }
+.size { flex: 1; }
 .date { flex: 2; }
 
-/* ===== SEARCH ===== */
+/* поиск */
 .search {
   padding: 6px;
   background: #2a2d31;
@@ -119,21 +103,19 @@ body::before {
   outline: none;
 }
 
-/* ===== TOAST ===== */
+/* toast */
 .copy-toast {
   position: fixed;
   bottom: 20px;
   right: 20px;
   background: #222;
-  padding: 10px 15px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 6px;
   opacity: 0;
   transition: 0.3s;
 }
 
-.copy-toast.show {
-  opacity: 1;
-}
+.copy-toast.show { opacity: 1; }
 </style>
 </head>
 
@@ -142,15 +124,15 @@ body::before {
 <div class="container">
 
   <div class="header">
-    <div class="name">Name</div>
-    <div class="length">Size</div>
-    <div class="date">Date</div>
+    <div>Name</div>
+    <div>Size</div>
+    <div>Date</div>
   </div>
 
   <div id="files" class="file-list"></div>
 
   <div class="search">
-    <input type="text" id="search" placeholder="Search">
+    <input id="search" placeholder="Search">
   </div>
 
 </div>
@@ -158,133 +140,109 @@ body::before {
 <div id="toast" class="copy-toast">Copied</div>
 
 <script>
-let structure = null;
-let current = null;
+let data = null;
+let path = [];
 let currentItems = [];
 
-/* ===== КОНВЕРТАЦИЯ JSON ===== */
-function convert(obj, name) {
-  let node = {
-    name: name,
-    type: "folder",
-    children: []
-  };
-
-  for (let key in obj) {
-    if (key === "_files") {
-      obj[key].forEach(f => {
-        node.children.push({
-          name: f.name,
-          type: "file",
-          size: f.size || "",
-          date: f.date || ""
-        });
-      });
-    } else {
-      node.children.push(convert(obj[key], key));
-    }
-  }
-
-  return node;
+/* ===== НАВИГАЦИЯ ===== */
+function getFolder() {
+  let cur = data;
+  for (let p of path) cur = cur[p];
+  return cur;
 }
 
-/* ===== LOAD ===== */
-async function load() {
-  const res = await fetch("structure.json");
-  const raw = await res.json();
-
-  // ВАЖНО: создаём корень без лишнего уровня
-  structure = {
-    name: "root",
-    type: "folder",
-    children: []
-  };
-
-  for (let key in raw) {
-    structure.children.push(convert(raw[key], key));
-  }
-
-  addParents(structure);
-  current = structure;
-
-  render(current.children);
-}
-
-/* ===== RENDER ===== */
-function render(items) {
+/* ===== РЕНДЕР ===== */
+function render() {
   const container = document.getElementById("files");
   container.innerHTML = "";
-  currentItems = items;
+
+  const folder = getFolder();
+  currentItems = [];
 
   // назад
-  if (current.parent) {
-    const back = createRow({
-      name: "../",
-      type: "folder",
-      isBack: true
+  if (path.length) {
+    const back = createRow("📁 ../", "", "", () => {
+      path.pop();
+      render();
     });
-
-    back.onclick = () => {
-      current = current.parent;
-      render(current.children);
-    };
-
     container.appendChild(back);
   }
 
-  items.forEach(item => {
-    const div = createRow(item);
+  // папки
+  for (let key in folder) {
+    if (key === "_files") continue;
 
-    div.onclick = () => {
-      document.querySelectorAll(".file").forEach(f => f.classList.remove("active"));
-      div.classList.add("active");
+    currentItems.push({name: key, type: "folder"});
 
-      if (item.type === "folder") {
-        current = item;
-        render(item.children);
-      } else {
-        navigator.clipboard.writeText(item.name);
+    const row = createRow("📁 " + key, "", "", () => {
+      path.push(key);
+      render();
+    });
+
+    container.appendChild(row);
+  }
+
+  // файлы
+  if (folder._files) {
+    folder._files.forEach(f => {
+      currentItems.push({name: f.name, type: "file"});
+
+      const row = createRow("📄 " + f.name, f.size, f.date, () => {
+        navigator.clipboard.writeText(f.name);
         showToast();
-      }
-    };
+      });
 
-    container.appendChild(div);
-  });
+      container.appendChild(row);
+    });
+  }
 }
 
-/* ===== ROW ===== */
-function createRow(item) {
+/* ===== СТРОКА ===== */
+function createRow(name, size, date, click) {
   const div = document.createElement("div");
   div.className = "file";
 
   div.innerHTML = `
-    <img class="icon" src="${item.type === 'folder' ? 'folder.png' : 'file.png'}">
-    <div class="name">${item.name}</div>
-    <div class="length">${item.size || ""}</div>
-    <div class="date">${item.date || ""}</div>
+    <div class="name">${name}</div>
+    <div class="size">${size || ""}</div>
+    <div class="date">${date || ""}</div>
   `;
 
+  div.onclick = click;
   return div;
 }
 
-/* ===== SEARCH ===== */
+/* ===== ПОИСК ===== */
 document.getElementById("search").addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
+  const container = document.getElementById("files");
+  container.innerHTML = "";
 
-  const filtered = currentItems.filter(i =>
-    i.name.toLowerCase().includes(q)
-  );
+  const folder = getFolder();
 
-  render(filtered);
-});
-
-/* ===== PARENTS ===== */
-function addParents(node, parent=null) {
-  node.parent = parent;
-  if (node.children) {
-    node.children.forEach(child => addParents(child, node));
+  // фильтр папок
+  for (let key in folder) {
+    if (key === "_files") continue;
+    if (key.toLowerCase().includes(q)) {
+      container.appendChild(createRow("📁 " + key, "", "", () => {
+        path.push(key);
+        render();
+      }));
+    }
   }
-}
+
+  // фильтр файлов
+  if (folder._files) {
+    folder._files.forEach(f => {
+      if (f.name.toLowerCase().includes(q)) {
+        container.appendChild(createRow("📄 " + f.name, f.size, f.date, () => {
+          navigator.clipboard.writeText(f.name);
+          showToast();
+        }));
+      }
+    });
+  }
+});
 
 /* ===== TOAST ===== */
 function showToast() {
@@ -293,7 +251,13 @@ function showToast() {
   setTimeout(() => t.classList.remove("show"), 800);
 }
 
-load();
+/* ===== ЗАГРУЗКА ===== */
+fetch("structure.json")
+  .then(r => r.json())
+  .then(json => {
+    data = json;
+    render();
+  });
 </script>
 
 </body>
