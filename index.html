@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>File Browser</title>
+
+<style>
+body {
+    background: #0f1115;
+    color: #e6e6e6;
+    font-family: Arial;
+    padding: 20px;
+}
+
+.folder {
+    cursor: pointer;
+    color: #6ab0ff;
+    margin-left: 10px;
+}
+
+.file {
+    margin-left: 25px;
+    color: #ccc;
+}
+
+.hidden {
+    display: none;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📁 File Browser</h2>
+
+<div id="tree"></div>
+
+<script>
+fetch('structure.json')
+.then(res => res.json())
+.then(data => {
+    document.getElementById("tree").appendChild(render(data));
+});
+
+function render(node) {
+    let el = document.createElement("div");
+
+    if (node.type === "folder") {
+        let title = document.createElement("div");
+        title.textContent = "📁 " + node.name;
+        title.className = "folder";
+
+        let children = document.createElement("div");
+        children.className = "hidden";
+
+        title.onclick = () => {
+            children.classList.toggle("hidden");
+        };
+
+        node.children.forEach(child => {
+            children.appendChild(render(child));
+        });
+
+        el.appendChild(title);
+        el.appendChild(children);
+    } else {
+        let file = document.createElement("div");
+        file.textContent = "📄 " + node.name;
+        file.className = "file";
+        el.appendChild(file);
+    }
+
+    return el;
+}
+</script>
+
+</body>
+</html>
