@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<link rel="icon" type="image/png" href="logo.png">
 <meta charset="UTF-8">
 <title>fomjn</title>
 <style>
@@ -81,103 +82,67 @@
 <ul class="folder-tree" id="fileTree"></ul>
 
 <script>
-  const fileStructure = {
-    "demos": {
-      "DDNet": {
-        "Solo": [
-          {name: "1Hook_185.340_fomjn.demo", size: "4.2 MB"},
-          {name: "Euthanasia_168.080_fomjn.demo", size: "3.1 MB"}
-        ],
-        "Race": [
-          {name: "RaceMap1_123.456.demo", size: "2.0 MB"}
-        ]
-      },
-      "DDROCK": {
-        "Solo": [],
-        "Race": []
-      },
-      "KoG": {
-        "Solo": []
-      },
-      "Unique": {
-        "Short": [],
-        "Middle": [],
-        "Long": [],
-        "Fastcap": []
-      }
-    },
-    "ghosts": {
-      "DDNet": {
-        "Solo": [],
-        "Race": []
-      },
-      "DDROCK": {
-        "Solo": [],
-        "Race": []
-      },
-      "KoG": {
-        "Solo": []
-      },
-      "Unique": {
-        "Short": [],
-        "Middle": [],
-        "Long": [],
-        "Fastcap": []
-      }
-    }
-  };
+async function loadStructure() {
+  const res = await fetch("structure.json");
+  const data = await res.json();
+  buildTree(document.getElementById("fileTree"), data);
+}
 
-  function buildTree(container, structure) {
-    Object.entries(structure).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        if (value.length === 0) return;
-        value.forEach(file => {
-          if(file.name.toLowerCase() === 'desktop.ini') return;
-          const li = document.createElement('li');
-          li.classList.add('file');
-          li.textContent = file.name;
-          const span = document.createElement('span');
-          span.classList.add('file-size');
-          span.textContent = file.size;
-          li.appendChild(span);
-          container.appendChild(li);
-        });
-      } else {
-        const li = document.createElement('li');
-        li.classList.add('folder');
-        li.textContent = key;
+function buildTree(container, structure) {
+  Object.entries(structure).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach(file => {
+        if (file.name.toLowerCase() === "desktop.ini") return;
 
-        let count = countFiles(value);
-        const countSpan = document.createElement('span');
-        countSpan.classList.add('file-count');
-        countSpan.textContent = `(${count})`;
-        li.appendChild(countSpan);
+        const li = document.createElement("li");
+        li.classList.add("file");
+        li.textContent = file.name;
 
-        const ul = document.createElement('ul');
-        buildTree(ul, value);
-        li.appendChild(ul);
-
-        li.addEventListener('click', (e) => {
-          e.stopPropagation();
-          li.classList.toggle('open');
-        });
+        const size = document.createElement("span");
+        size.className = "file-size";
+        size.textContent = file.size;
+        li.appendChild(size);
 
         container.appendChild(li);
-      }
-    });
-  }
+      });
+    } else {
+      const li = document.createElement("li");
+      li.classList.add("folder");
+      li.textContent = key;
 
-  function countFiles(structure) {
-    let total = 0;
-    Object.values(structure).forEach(value => {
-      if (Array.isArray(value)) total += value.filter(f=>f.name.toLowerCase()!=='desktop.ini').length;
-      else total += countFiles(value);
-    });
-    return total;
-  }
+      const count = countFiles(value);
+      const span = document.createElement("span");
+      span.className = "file-count";
+      span.textContent = `(${count})`;
+      li.appendChild(span);
 
-  const treeContainer = document.getElementById('fileTree');
-  buildTree(treeContainer, fileStructure);
+      const ul = document.createElement("ul");
+      buildTree(ul, value);
+      li.appendChild(ul);
+
+      li.addEventListener("click", (e) => {
+        e.stopPropagation();
+        li.classList.toggle("open");
+      });
+
+      container.appendChild(li);
+    }
+  });
+}
+
+function countFiles(structure) {
+  let total = 0;
+  Object.values(structure).forEach(value => {
+    if (Array.isArray(value)) {
+      total += value.filter(f => f.name.toLowerCase() !== "desktop.ini").length;
+    } else {
+      total += countFiles(value);
+    }
+  });
+  return total;
+}
+
+loadStructure();
 </script>
 
 </body>
