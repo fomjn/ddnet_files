@@ -1,85 +1,147 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<link rel="icon" type="image/png" href="logo.png">
 <meta charset="UTF-8">
 <title>fomjn</title>
+
+<link rel="icon" type="image/png" href="logo.png">
+
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #111;
-    color: #eee;
-    padding: 20px;
-  }
+body {
+  font-family: Arial, sans-serif;
+  color: #eee;
+  margin: 0;
+  overflow-x: hidden;
+}
 
-  h1.file-browser-header {
-    font-size: 24px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-  }
+/* === ФОН (анимированный) === */
+body::before {
+  content: "";
+  position: fixed;
+  width: 200%;
+  height: 200%;
+  background: url("bg.png");
+  background-size: 128px 64px;
+  opacity: 0.15;
+  animation: moveBg 20s linear infinite;
+  z-index: -1;
+}
 
-  .header-logo {
-    width: 32px;
-    height: 32px;
-    margin-right: 8px;
-  }
+@keyframes moveBg {
+  0% { transform: translate(0,0); }
+  100% { transform: translate(-128px,-64px); }
+}
 
-  ul.folder-tree {
-    list-style: none;
-    padding-left: 20px;
-  }
+/* === КОНТЕЙНЕР === */
+.container {
+  max-width: 1000px;
+  margin: auto;
+  padding: 20px;
+}
 
-  ul.folder-tree li {
-    margin: 2px 0;
-    cursor: pointer;
-    position: relative;
-    padding-left: 5px;
-  }
+/* === HEADER === */
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-  ul.folder-tree li ul {
-    display: none;
-  }
+.header-logo {
+  width: 32px;
+  height: 32px;
+}
 
-  ul.folder-tree li.open > ul {
-    display: block;
-  }
+/* === ДЕРЕВО === */
+ul {
+  list-style: none;
+  padding-left: 20px;
+}
 
-  ul.folder-tree li.folder::before {
-    content: "📁 ";
-    margin-right: 5px;
-  }
+li {
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
 
-  ul.folder-tree li.file::before {
-    content: "📄 ";
-    margin-right: 5px;
-  }
+li:hover {
+  background: rgba(255,255,255,0.05);
+}
 
-  ul.folder-tree li:hover {
-    background-color: rgba(0,128,255,0.1);
-  }
+.folder::before {
+  content: "📁 ";
+}
 
-  .file-size {
-    font-size: 0.8em;
-    color: #999;
-    margin-left: 8px;
-  }
+.file::before {
+  content: "📄 ";
+}
 
-  .file-count {
-    font-size: 0.85em;
-    color: #ccc;
-    margin-left: 4px;
-  }
+/* === ФАЙЛЫ === */
+.file {
+  display: flex;
+  justify-content: space-between;
+  max-width: 700px;
+}
+
+.file.demo {
+  color: #4aa3ff;
+}
+
+.file.gho {
+  color: #c084fc;
+}
+
+.file-size {
+  color: #888;
+  margin-left: 10px;
+}
+
+/* === ПАПКИ === */
+.folder > ul {
+  display: none;
+}
+
+.folder.open > ul {
+  display: block;
+}
+
+.file-count {
+  color: #aaa;
+  margin-left: 5px;
+  font-size: 0.85em;
+}
+
+/* === УВЕДОМЛЕНИЕ КОПИРОВАНИЯ === */
+.copy-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #222;
+  padding: 10px 15px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: 0.3s;
+}
+
+.copy-toast.show {
+  opacity: 1;
+}
 </style>
 </head>
+
 <body>
 
-<h1 class="file-browser-header">
-  <img src="logo.png" alt="logo" class="header-logo">
+<div class="container">
+
+<h1>
+  <img src="logo.png" class="header-logo">
   fomjn
 </h1>
 
-<ul class="folder-tree" id="fileTree"></ul>
+<ul id="fileTree"></ul>
+
+</div>
+
+<div id="toast" class="copy-toast">Copied</div>
 
 <script>
 async function loadStructure() {
@@ -91,26 +153,36 @@ async function loadStructure() {
 function buildTree(container, structure) {
   Object.entries(structure).forEach(([key, value]) => {
 
-    // ФАЙЛЫ
-    if (key === "_files" && Array.isArray(value)) {
+    // === ФАЙЛЫ ===
+    if (key === "_files") {
       value.forEach(file => {
         if (file.name.toLowerCase() === "desktop.ini") return;
 
         const li = document.createElement("li");
         li.classList.add("file");
-        li.textContent = file.name;
 
-        const size = document.createElement("span");
-        size.className = "file-size";
-        size.textContent = file.size;
-        li.appendChild(size);
+        // тип файла
+        if (file.name.endsWith(".demo")) li.classList.add("demo");
+        if (file.name.endsWith(".gho")) li.classList.add("gho");
+
+        li.innerHTML = `
+          <span>${file.name}</span>
+          <span class="file-size">${file.size}</span>
+        `;
+
+        // КОПИРОВАНИЕ
+        li.addEventListener("click", (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(file.name);
+          showToast();
+        });
 
         container.appendChild(li);
       });
       return;
     }
 
-    // ПАПКИ
+    // === ПАПКИ ===
     const li = document.createElement("li");
     li.classList.add("folder");
     li.textContent = key;
@@ -138,12 +210,19 @@ function countFiles(structure) {
   let total = 0;
   Object.values(structure).forEach(value => {
     if (Array.isArray(value)) {
-      total += value.filter(f => f.name.toLowerCase() !== "desktop.ini").length;
-    } else {
+      total += value.length;
+    } else if (typeof value === "object") {
       total += countFiles(value);
     }
   });
   return total;
+}
+
+/* === TOAST === */
+function showToast() {
+  const toast = document.getElementById("toast");
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 1000);
 }
 
 loadStructure();
