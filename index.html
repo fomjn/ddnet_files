@@ -90,7 +90,9 @@ async function loadStructure() {
 
 function buildTree(container, structure) {
   Object.entries(structure).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
+
+    // ФАЙЛЫ
+    if (key === "_files" && Array.isArray(value)) {
       value.forEach(file => {
         if (file.name.toLowerCase() === "desktop.ini") return;
 
@@ -105,28 +107,30 @@ function buildTree(container, structure) {
 
         container.appendChild(li);
       });
-    } else {
-      const li = document.createElement("li");
-      li.classList.add("folder");
-      li.textContent = key;
-
-      const count = countFiles(value);
-      const span = document.createElement("span");
-      span.className = "file-count";
-      span.textContent = `(${count})`;
-      li.appendChild(span);
-
-      const ul = document.createElement("ul");
-      buildTree(ul, value);
-      li.appendChild(ul);
-
-      li.addEventListener("click", (e) => {
-        e.stopPropagation();
-        li.classList.toggle("open");
-      });
-
-      container.appendChild(li);
+      return;
     }
+
+    // ПАПКИ
+    const li = document.createElement("li");
+    li.classList.add("folder");
+    li.textContent = key;
+
+    const count = countFiles(value);
+    const span = document.createElement("span");
+    span.className = "file-count";
+    span.textContent = `(${count})`;
+    li.appendChild(span);
+
+    const ul = document.createElement("ul");
+    buildTree(ul, value);
+    li.appendChild(ul);
+
+    li.addEventListener("click", (e) => {
+      e.stopPropagation();
+      li.classList.toggle("open");
+    });
+
+    container.appendChild(li);
   });
 }
 
