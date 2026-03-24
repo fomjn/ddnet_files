@@ -11,13 +11,9 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   color: #ddd;
-  overflow: hidden;
-}
-  
- {
   cursor: url("cursor.png"), auto;
 }
-  
+
 /* ===== ФОН ===== */
 body::before {
   content: "";
@@ -27,10 +23,10 @@ body::before {
   background: url("bg_v3.png") repeat;
   background-size: 128px 128px;
 
-  animation: moveBg 20s linear infinite;
-  filter: brightness(0.35);
+  animation: moveBg 8s linear infinite;
+  filter: brightness(0.25);
 
-  z-index: -2;
+  z-index: -1;
 }
 
 @keyframes moveBg {
@@ -38,26 +34,24 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* ===== ОСНОВНОЕ ОКНО ===== */
+/* ===== КОНТЕЙНЕР ===== */
 .container {
-  width: 900px;
-  height: 600px;
-  margin: 40px auto;
+  width: 95%;
+  height: 90vh;
+  margin: 20px auto;
 
-  background: rgba(20, 20, 25, 0.85);
-  border-radius: 6px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.6);
+  background: rgba(15, 15, 18, 0.85);
+  border-radius: 8px;
 
   display: flex;
   flex-direction: column;
 }
 
-/* ===== ХЕДЕР ===== */
+/* ===== HEADER ===== */
 .header {
   display: flex;
   padding: 10px;
   background: linear-gradient(#5f6368, #3a3d42);
-  color: #eee;
   font-weight: bold;
 }
 
@@ -65,14 +59,13 @@ body::before {
   flex: 1;
 }
 
-/* ===== СПИСОК ===== */
+/* ===== FILE LIST ===== */
 .file-list {
   flex: 1;
   overflow-y: auto;
-  padding: 5px 0;
 }
 
-/* ===== СТРОКА ===== */
+/* ===== FILE ROW ===== */
 .file {
   display: flex;
   align-items: center;
@@ -81,29 +74,33 @@ body::before {
 }
 
 .file:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.08);
 }
 
-/* ВЫБРАННЫЙ ФАЙЛ */
 .file.active {
-  background: #dcdcdc;
+  background: #e6e6e6;
   color: #000;
 }
 
-/* ===== ИКОНКИ ===== */
+/* ===== ICON ===== */
 .icon {
-  width: 18px;
+  width: 16px;
   margin-right: 8px;
 }
 
-/* ===== КОЛОНКИ ===== */
-.name { flex: 3; }
+/* ===== COLUMNS ===== */
+.name {
+  flex: 3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .length { flex: 1; }
 .date { flex: 2; }
 
-/* ===== ПОИСК ===== */
+/* ===== SEARCH ===== */
 .search {
-  display: flex;
   padding: 6px;
   background: #2a2d31;
 }
@@ -114,68 +111,10 @@ body::before {
   background: #1e1f22;
   border: none;
   color: #ccc;
+  outline: none;
 }
 
-/* === ДЕРЕВО === */
-ul {
-  list-style: none;
-  padding-left: 20px;
-}
-
-li {
-  cursor: pointer;
-  padding: 2px 5px;
-  border-radius: 4px;
-}
-
-li:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-.folder::before {
-  content: "📁 ";
-}
-
-.file::before {
-  content: "📄 ";
-}
-
-/* === ФАЙЛЫ === */
-.file {
-  display: flex;
-  justify-content: space-between;
-  max-width: 700px;
-}
-
-.file.demo {
-  color: #4aa3ff;
-}
-
-.file.gho {
-  color: #c084fc;
-}
-
-.file-size {
-  color: #888;
-  margin-left: 10px;
-}
-
-/* === ПАПКИ === */
-.folder > ul {
-  display: none;
-}
-
-.folder.open > ul {
-  display: block;
-}
-
-.file-count {
-  color: #aaa;
-  margin-left: 5px;
-  font-size: 0.85em;
-}
-
-/* === УВЕДОМЛЕНИЕ КОПИРОВАНИЯ === */
+/* ===== TOAST ===== */
 .copy-toast {
   position: fixed;
   bottom: 20px;
@@ -199,14 +138,14 @@ li:hover {
 
   <div class="header">
     <div class="name">Demo</div>
-    <div class="length">Length</div>
+    <div class="length">Size</div>
     <div class="date">Date</div>
   </div>
 
   <div id="files" class="file-list"></div>
 
   <div class="search">
-    <input type="text" placeholder="Search">
+    <input type="text" id="search" placeholder="Search">
   </div>
 
 </div>
@@ -216,44 +155,71 @@ li:hover {
 <script>
 let structure = null;
 let current = null;
+let currentItems = [];
 
+/* ===== КОНВЕРТАЦИЯ ТВОЕГО JSON ===== */
+function convert(obj, name="root") {
+  let node = {
+    name: name,
+    type: "folder",
+    children: []
+  };
+
+  for (let key in obj) {
+    if (key === "_files") {
+      obj[key].forEach(f => {
+        node.children.push({
+          name: f.name,
+          type: "file",
+          size: f.size || "",
+          date: f.date || ""
+        });
+      });
+    } else {
+      node.children.push(convert(obj[key], key));
+    }
+  }
+
+  return node;
+}
+
+/* ===== LOAD ===== */
 async function load() {
   const res = await fetch("structure.json");
-  structure = await res.json();
+  const raw = await res.json();
+
+  structure = convert(raw, "fomjn");
   current = structure;
+
+  addParents(structure);
+
   render(current.children);
 }
 
+/* ===== RENDER ===== */
 function render(items) {
   const container = document.getElementById("files");
   container.innerHTML = "";
+  currentItems = items;
 
-  // кнопка назад
-  if (current !== structure) {
-    const back = document.createElement("div");
-    back.className = "file";
-    back.innerHTML = `
-      <div class="name">../</div>
-      <div class="length"></div>
-      <div class="date"></div>
-    `;
+  // назад
+  if (current.parent) {
+    const back = createRow({
+      name: "../",
+      type: "folder",
+      isBack: true
+    });
+
     back.onclick = () => {
       current = current.parent;
       render(current.children);
     };
+
     container.appendChild(back);
   }
 
   items.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "file";
-
-    div.innerHTML = `
-      <img class="icon" src="${item.type === 'folder' ? 'folder.png' : 'file.png'}">
-      <div class="name">${item.name}</div>
-      <div class="length">${item.size || ''}</div>
-      <div class="date">${item.date || ''}</div>
-    `;
+    const div = createRow(item);
 
     div.onclick = () => {
       document.querySelectorAll(".file").forEach(f => f.classList.remove("active"));
@@ -262,6 +228,9 @@ function render(items) {
       if (item.type === "folder") {
         current = item;
         render(item.children);
+      } else {
+        navigator.clipboard.writeText(item.name);
+        showToast();
       }
     };
 
@@ -269,7 +238,33 @@ function render(items) {
   });
 }
 
-// parent ссылки
+/* ===== CREATE ROW ===== */
+function createRow(item) {
+  const div = document.createElement("div");
+  div.className = "file";
+
+  div.innerHTML = `
+    <img class="icon" src="${item.type === 'folder' ? 'folder.png' : 'file.png'}">
+    <div class="name">${item.name}</div>
+    <div class="length">${item.size || ""}</div>
+    <div class="date">${item.date || ""}</div>
+  `;
+
+  return div;
+}
+
+/* ===== SEARCH ===== */
+document.getElementById("search").addEventListener("input", e => {
+  const q = e.target.value.toLowerCase();
+
+  const filtered = currentItems.filter(i =>
+    i.name.toLowerCase().includes(q)
+  );
+
+  render(filtered);
+});
+
+/* ===== PARENTS ===== */
 function addParents(node, parent=null) {
   node.parent = parent;
   if (node.children) {
@@ -277,9 +272,14 @@ function addParents(node, parent=null) {
   }
 }
 
-load().then(() => {
-  addParents(structure);
-});
+/* ===== TOAST ===== */
+function showToast() {
+  const t = document.getElementById("toast");
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 800);
+}
+
+load();
 </script>
 
 </body>
