@@ -18,19 +18,33 @@ body {
 body::before {
   content: "";
   position: fixed;
-  width: 200%;
-  height: 200%;
-  background:
-    linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)),
-    url("bg_v3.png");
-  background-size: 256px 128px;
+  inset: 0;
+  background: url("bg_v2.png") repeat;
+  background-size: 128px 128px;
   animation: moveBg 20s linear infinite;
+  opacity: 0.25;
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("bg_v2.png") repeat;
+  background-size: 128px 128px;
+  animation: moveBg2 35s linear infinite;
+  opacity: 0.15;
   z-index: -1;
 }
 
 @keyframes moveBg {
-  0% { transform: translate(0,0); }
-  100% { transform: translate(-128px,-64px); }
+  from { background-position: 0 0; }
+  to { background-position: 0 128px; }
+}
+
+@keyframes moveBg2 {
+  from { background-position: 0 0; }
+  to { background-position: 128px 0; }
 }
 
 /* === КОНТЕЙНЕР === */
