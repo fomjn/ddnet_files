@@ -7,11 +7,22 @@
 <link rel="icon" type="image/png" href="logo.png">
 
 <style>
-body {
+* {
+  box-sizing: border-box;
+}
+
+html, body {
   margin: 0;
+  height: 100%;
   font-family: Arial, sans-serif;
   color: #ddd;
-  cursor: url("cursor.png"), auto;
+
+  cursor: url("cursor.png") 0 0, auto;
+}
+
+/* фикс курсора для ВСЕГО */
+input, div, * {
+  cursor: url("cursor.png") 0 0, auto !important;
 }
 
 /* ===== ФОН ===== */
@@ -23,7 +34,7 @@ body::before {
   background: url("bg_v3.png") repeat;
   background-size: 128px 128px;
 
-  animation: moveBg 8s linear infinite;
+  animation: moveBg 6s linear infinite;
   filter: brightness(0.25);
 
   z-index: -1;
@@ -34,15 +45,10 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* ===== КОНТЕЙНЕР ===== */
+/* ===== FULLSCREEN ===== */
 .container {
-  width: 95%;
-  height: 90vh;
-  margin: 20px auto;
-
-  background: rgba(15, 15, 18, 0.85);
-  border-radius: 8px;
-
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -59,18 +65,17 @@ body::before {
   flex: 1;
 }
 
-/* ===== FILE LIST ===== */
+/* ===== LIST ===== */
 .file-list {
   flex: 1;
   overflow-y: auto;
 }
 
-/* ===== FILE ROW ===== */
+/* ===== ROW ===== */
 .file {
   display: flex;
   align-items: center;
   padding: 6px 10px;
-  cursor: pointer;
 }
 
 .file:hover {
@@ -88,7 +93,7 @@ body::before {
   margin-right: 8px;
 }
 
-/* ===== COLUMNS ===== */
+/* ===== COLS ===== */
 .name {
   flex: 3;
   white-space: nowrap;
@@ -137,7 +142,7 @@ body::before {
 <div class="container">
 
   <div class="header">
-    <div class="name">Demo</div>
+    <div class="name">Name</div>
     <div class="length">Size</div>
     <div class="date">Date</div>
   </div>
@@ -157,8 +162,8 @@ let structure = null;
 let current = null;
 let currentItems = [];
 
-/* ===== КОНВЕРТАЦИЯ ТВОЕГО JSON ===== */
-function convert(obj, name="root") {
+/* ===== КОНВЕРТАЦИЯ JSON ===== */
+function convert(obj, name) {
   let node = {
     name: name,
     type: "folder",
@@ -188,10 +193,19 @@ async function load() {
   const res = await fetch("structure.json");
   const raw = await res.json();
 
-  structure = convert(raw, "fomjn");
-  current = structure;
+  // ВАЖНО: создаём корень без лишнего уровня
+  structure = {
+    name: "root",
+    type: "folder",
+    children: []
+  };
+
+  for (let key in raw) {
+    structure.children.push(convert(raw[key], key));
+  }
 
   addParents(structure);
+  current = structure;
 
   render(current.children);
 }
@@ -238,7 +252,7 @@ function render(items) {
   });
 }
 
-/* ===== CREATE ROW ===== */
+/* ===== ROW ===== */
 function createRow(item) {
   const div = document.createElement("div");
   div.className = "file";
