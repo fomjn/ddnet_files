@@ -61,10 +61,6 @@ body::before {
 }
 
 .header-cell:hover {
-  background: rgba(255,255,255,0.12);
-}
-
-.header-cell.active {
   background: rgba(255,255,255,0.15);
 }
 
@@ -73,33 +69,29 @@ body::before {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.3) transparent;
 }
 
-/* Chrome scrollbar */
+/* Chrome */
 .file-list::-webkit-scrollbar {
   width: 10px;
 }
-
-.file-list::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.2);
-}
-
 .file-list::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.25);
   border-radius: 6px;
 }
-
 .file-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.45);
 }
 
 /* ===== СТРОКА ===== */
 .file {
   display: flex;
-  padding: 12px;
-  font-size: 18px;
+  padding: 10px;
+  font-size: 16px;
+  transition: background 0.15s;
 }
 
 .file:hover {
@@ -113,9 +105,9 @@ body::before {
 /* ===== КОЛОНКИ ===== */
 .name {
   flex: 3;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .size {
@@ -127,18 +119,6 @@ body::before {
 .icon {
   width: 18px;
   margin-right: 8px;
-}
-
-/* 📱 ТЕЛЕФОН */
-@media (max-width: 768px) {
-  .file {
-    padding: 18px;
-    font-size: 20px;
-  }
-
-  .icon {
-    width: 36px;
-  }
 }
 
 /* ===== SEARCH ===== */
@@ -161,18 +141,26 @@ body::before {
   border: none;
   color: #ccc;
   outline: none;
+  transition: background 0.2s;
 }
 
 .search input:hover {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.15);
 }
 
 .search button {
-  background: none;
+  background: transparent;
   border: none;
-  color: #ccc;
+  color: #aaa;
   font-size: 18px;
   cursor: pointer;
+  padding: 4px 8px;
+  transition: 0.2s;
+}
+
+.search button:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.15);
 }
 
 /* ===== TOAST ===== */
@@ -278,9 +266,7 @@ function row(name, size, action, icon) {
 /* ===== SORT ===== */
 document.getElementById("header-name").onclick = () => {
   current.children.sort((a, b) =>
-    nameAsc
-      ? a.name.localeCompare(b.name)
-      : b.name.localeCompare(a.name)
+    nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
   );
   nameAsc = !nameAsc;
   render(current);
@@ -330,72 +316,6 @@ function flatten(node) {
   return arr;
 }
 
-/* ===== SCROLL (ИНЕРЦИЯ) ===== */
-const list = document.getElementById("files");
-
-let isDown = false;
-let startY = 0;
-let scrollTop = 0;
-let velocity = 0;
-let lastY = 0;
-let isDown = false;
-let startY = 0;
-let scrollTop = 0;
-
-list.addEventListener("mousedown", e => {
-  // только если не используем скроллбар
-  if (e.target.closest(".file")) {
-    isDown = true;
-    startY = e.clientY;
-    scrollTop = list.scrollTop;
-  }
-});
-
-document.addEventListener("mouseup", () => isDown = false);
-
-document.addEventListener("mousemove", e => {
-  if (!isDown) return;
-  list.scrollTop = scrollTop - (e.clientY - startY);
-});
-
-document.addEventListener("mouseup", () => isDown = false);
-
-document.addEventListener("mousemove", e => {
-  if (!isDown) return;
-  const dy = e.clientY - startY;
-  list.scrollTop = scrollTop - dy;
-
-  velocity = e.clientY - lastY;
-  lastY = e.clientY;
-});
-
-function inertia() {
-  if (Math.abs(velocity) < 0.1) return;
-  list.scrollTop -= velocity;
-  velocity *= 0.95;
-  requestAnimationFrame(inertia);
-}
-
-document.addEventListener("mouseup", inertia);
-
-/* TOUCH */
-list.addEventListener("touchstart", e => {
-  startY = e.touches[0].clientY;
-  scrollTop = list.scrollTop;
-  velocity = 0;
-  lastY = startY;
-});
-
-list.addEventListener("touchmove", e => {
-  const y = e.touches[0].clientY;
-  list.scrollTop = scrollTop - (y - startY);
-
-  velocity = y - lastY;
-  lastY = y;
-});
-
-list.addEventListener("touchend", inertia);
-
 /* ===== COPY ===== */
 function copy(text) {
   navigator.clipboard.writeText(text);
@@ -417,6 +337,10 @@ fetch("./structure.json")
     root = data;
     link(root);
     render(root);
+  })
+  .catch(() => {
+    document.getElementById("files").innerHTML =
+      "<div style='padding:20px;color:red'>Ошибка загрузки structure.json</div>";
   });
 
 </script>
