@@ -144,11 +144,34 @@ body::before {
 
   <div id="files" class="file-list"></div>
 
-  <div class="search">
-    <img src="loupe.png" alt="Search">
-    <input id="search" placeholder="Search">
-    <button id="clear">×</button>
-  </div>
+<!-- SEARCH -->
+<div class="search">
+  <img src="loupe.png" alt="Search">
+  <input id="search" placeholder="Search">
+  <button id="clear">×</button>
+</div>
+
+<style>
+.search button {
+  width: 24px;
+  height: 24px;
+  background: rgba(255,255,255,0.05);
+  border: none;
+  color: #ccc;
+  font-size: 16px;
+  margin-left: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.search button:hover {
+  background: rgba(255,255,255,0.1);
+}
+</style>
 
 </div>
 
@@ -223,15 +246,22 @@ function flattenTree(node) {
   return arr;
 }
 
-/* ===== SEARCH ===== */
+// ===== SEARCH =====
 const searchInput = document.getElementById("search");
 searchInput.addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  if (!root) return;
+  if (!root || !current) return;
 
+  if (!q) {
+    // Пустой поиск — показываем текущую папку
+    render(current);
+    return;
+  }
+
+  // Поиск по всему дереву
   const allItems = flattenTree(root);
 
   allItems.forEach(item => {
@@ -254,10 +284,10 @@ searchInput.addEventListener("input", e => {
   });
 });
 
-/* ===== CLEAR BUTTON ===== */
+// ===== CLEAR BUTTON =====
 document.getElementById("clear").onclick = () => {
   searchInput.value = "";
-  render(root);
+  render(current); // теперь рендерим текущую папку, а не весь корень
 };
 
 /* ===== PARENT LINKS ===== */
