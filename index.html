@@ -84,18 +84,35 @@ body::before {
 
 /* поиск */
 .search {
+  display: flex;
+  align-items: center;
   padding: 6px;
   background: #2a2d31;
 }
 
+.search img {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+}
+
 .search input {
-  width: 100%;
+  flex: 1;
   padding: 6px;
-  background: #1e1f22;
+  background: rgba(255,255,255,0.1);
   border: none;
   color: #ccc;
   outline: none;
-  caret-color: transparent;
+  caret-color: #fff;
+}
+
+.search button {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 16px;
+  margin-left: 6px;
+  cursor: pointer;
 }
 
 /* toast */
@@ -128,7 +145,9 @@ body::before {
   <div id="files" class="file-list"></div>
 
   <div class="search">
+    <img src="loupe.png" alt="Search">
     <input id="search" placeholder="Search">
+    <button id="clear">×</button>
   </div>
 
 </div>
@@ -160,7 +179,6 @@ function render(folder) {
         }, "folder.png")
       );
     } else if (item.type === "file") {
-      // определяем иконку по расширению
       let icon = "file.png";
       if (item.name.endsWith(".demo")) icon = "film.png";
       if (item.name.endsWith(".gho")) icon = "file.png";
@@ -181,7 +199,10 @@ function row(name, size, date, click, icon) {
   div.className = "file";
 
   div.innerHTML = `
-    <div class="name"><img src="${icon}" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;"> ${name}</div>
+    <div class="name">
+      <img src="${icon}" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;">
+      ${name}
+    </div>
     <div class="size">${size}</div>
     <div class="date">${date}</div>
   `;
@@ -190,15 +211,30 @@ function row(name, size, date, click, icon) {
   return div;
 }
 
+/* ===== ПОИСК ПО ВСЕМУ ДЕРЕВУ ===== */
+function flattenTree(node) {
+  let arr = [];
+  if (node.children) {
+    node.children.forEach(child => {
+      arr.push(child);
+      if (child.children) arr = arr.concat(flattenTree(child));
+    });
+  }
+  return arr;
+}
+
 /* ===== SEARCH ===== */
-document.getElementById("search").addEventListener("input", e => {
+const searchInput = document.getElementById("search");
+searchInput.addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  if (!current || !current.children) return;
+  if (!root) return;
 
-  current.children.forEach(item => {
+  const allItems = flattenTree(root);
+
+  allItems.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
       let icon = "file.png";
       if (item.type === "folder") icon = "folder.png";
@@ -217,6 +253,12 @@ document.getElementById("search").addEventListener("input", e => {
     }
   });
 });
+
+/* ===== CLEAR BUTTON ===== */
+document.getElementById("clear").onclick = () => {
+  searchInput.value = "";
+  render(root);
+};
 
 /* ===== PARENT LINKS ===== */
 function linkParents(node, parent=null) {
