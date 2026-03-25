@@ -177,6 +177,15 @@ body::before {
 }
 .copy-toast.show { opacity: 1; }
 
+.progress {
+  margin-left: 10px;
+  font-size: 0.9em;
+}
+
+.green { color: #4cff7a; }
+.yellow { color: #ffd24c; }
+.red { color: #ff5c5c; }
+
 </style>
 </head>
 
@@ -212,6 +221,47 @@ body::before {
 let root, current, selected;
 let currentPath = "";
 
+/* ===== PROGRESS CONFIG ===== */
+const progressConfig = {
+  "demos/DDNet/1 - Solo": [420,420],
+  "demos/DDNet/2 - Race": [126,126],
+  "demos/DDNet/3 - Event (Solo)": [3,null],
+  "demos/DDNet/4 - Rank 1s": [20,null],
+
+  "demos/DDROCK/1 - Solo": [43,44],
+  "demos/DDROCK/2 - Race": [53,53],
+  "demos/DDROCK/3 - Rank 1s": [21,null],
+
+  "demos/KoG/1 - Solo": [18,33],
+
+  "demos/Unique/1 - Short": [451,451],
+  "demos/Unique/2 - Middle": [61,61],
+  "demos/Unique/3 - Long": [40,40],
+  "demos/Unique/4 - Fastcap": [86,86],
+  "demos/Unique/5 - Rank 1s": [13,null]
+};
+
+function getProgressColor(done, max){
+  if(!max) return "yellow";
+  const ratio = done / max;
+
+  if(ratio >= 1) return "green";
+  if(ratio >= 0.5) return "yellow";
+  return "red";
+}
+
+function countFiles(node){
+  if(!node.children) return 0;
+
+  let total = 0;
+  node.children.forEach(c=>{
+    if(c.type === "file") total++;
+    else total += countFiles(c);
+  });
+
+  return total;
+}
+
 /* ===== RENDER ===== */
 function render(folder, path=""){
   const el = document.getElementById("files");
@@ -224,22 +274,48 @@ function render(folder, path=""){
     el.appendChild(row("../", "", () => render(folder.parent, newPath), "tree.png"));
   }
 
-  folder.children.forEach(item => {
-    let icon = "file.png";
-    if (item.type === "folder") icon = "folder.png";
-    if (item.name.endsWith(".demo")) icon = "film.png";
+folder.children.forEach(item => {
 
-    el.appendChild(
-      row(item.name, item.size || "", () => {
+  let icon = "file.png";
+  if (item.type === "folder") icon = "folder.png";
+  if (item.name.endsWith(".demo")) icon = "film.png";
+
+  let progressHTML = "";
+
+  if(item.type === "folder"){
+    const fullPath = (path ? path + "/" : "") + item.name;
+
+    if(progressConfig[fullPath]){
+      let [done, max] = progressConfig[fullPath];
+
+      if(max === null){
+        progressHTML = `<span class="progress yellow">(${done})</span>`;
+      } else {
+        const color = getProgressColor(done, max);
+        progressHTML = `<span class="progress ${color}">(${done} / ${max})</span>`;
+      }
+    } else {
+      // fallback — просто считаем файлы
+      const total = countFiles(item);
+      progressHTML = `<span class="progress">(${total})</span>`;
+    }
+  }
+
+  el.appendChild(
+    row(
+      item.name + progressHTML,
+      item.size || "",
+      () => {
         if (item.type === "folder") {
           render(item, path + "/" + item.name);
         } else {
           copy(item.name);
         }
-      }, icon)
-    );
-  });
-}
+      },
+      icon
+    )
+  );
+});
 
 /* ===== ROW ===== */
 function row(name, size, action, icon){
