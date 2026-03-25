@@ -16,7 +16,7 @@ html, body {
   color: #ddd;
 }
 
-/* фон */
+/* ===== ФОН ===== */
 body::before {
   content: "";
   position: fixed;
@@ -33,7 +33,7 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* контейнер */
+/* ===== КОНТЕЙНЕР ===== */
 .container {
   width: 100%;
   height: 100%;
@@ -41,11 +41,12 @@ body::before {
   flex-direction: column;
 }
 
-/* HEADER */
+/* ===== HEADER ===== */
 .header {
   display: flex;
   padding: 6px;
-  background: #2a2d31;
+  background: rgba(42,45,49,0.6);
+  backdrop-filter: blur(4px);
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
@@ -62,20 +63,20 @@ body::before {
   background: rgba(255,255,255,0.1);
 }
 
-/* список */
+/* ===== СПИСОК ===== */
 .file-list {
   flex: 1;
   overflow-y: auto;
 }
 
-/* строка */
+/* ===== СТРОКА ===== */
 .file {
   display: flex;
   padding: 6px 10px;
 }
 
 .file:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
 }
 
 .file.active {
@@ -83,7 +84,7 @@ body::before {
   color: #000;
 }
 
-/* колонки */
+/* ===== КОЛОНКИ ===== */
 .name {
   flex: 3;
   white-space: nowrap;
@@ -93,12 +94,13 @@ body::before {
 
 .size { flex: 1; }
 
-/* поиск */
+/* ===== SEARCH ===== */
 .search {
   display: flex;
   align-items: center;
   padding: 6px;
-  background: #2a2d31;
+  background: rgba(42,45,49,0.6);
+  backdrop-filter: blur(4px);
 }
 
 .search img {
@@ -109,7 +111,7 @@ body::before {
 .search input {
   flex: 1;
   padding: 6px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
   border: none;
   color: #ccc;
   outline: none;
@@ -131,7 +133,7 @@ body::before {
   background: rgba(255,255,255,0.1);
 }
 
-/* toast */
+/* ===== TOAST ===== */
 .copy-toast {
   position: fixed;
   bottom: 20px;
@@ -204,6 +206,23 @@ function updateSortIndicators(active, asc) {
   }
 }
 
+/* ===== ROW ===== */
+function row(name, size, click, icon = null) {
+  const div = document.createElement("div");
+  div.className = "file";
+
+  div.innerHTML = `
+    <div class="name">
+      ${icon ? `<img src="${icon}" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;">` : ""}
+      ${name}
+    </div>
+    <div class="size">${size}</div>
+  `;
+
+  div.onclick = click;
+  return div;
+}
+
 /* ===== RENDER ===== */
 function render(folder) {
   const container = document.getElementById("files");
@@ -214,35 +233,34 @@ function render(folder) {
 
   // назад
   if (folder.parent) {
-    container.appendChild(row("..", "", () => render(folder.parent)));
+    container.appendChild(
+      row("..", "", () => render(folder.parent), "tree.png")
+    );
   }
 
   folder.children.forEach(item => {
+
     if (item.type === "folder") {
-      container.appendChild(row(item.name, "", () => render(item)));
-    } else {
+      container.appendChild(
+        row(item.name, "", () => render(item), "folder.png")
+      );
+    }
+
+    else if (item.type === "file") {
+      let icon = "file.png";
+
+      if (item.name.endsWith(".demo")) icon = "film.png";
+      if (item.name.endsWith(".gho")) icon = "file.png";
+
       container.appendChild(
         row(item.name, item.size || "", () => {
           navigator.clipboard.writeText(item.name);
           showToast();
-        })
+        }, icon)
       );
     }
+
   });
-}
-
-/* ===== ROW ===== */
-function row(name, size, click) {
-  const div = document.createElement("div");
-  div.className = "file";
-
-  div.innerHTML = `
-    <div class="name">${name}</div>
-    <div class="size">${size}</div>
-  `;
-
-  div.onclick = click;
-  return div;
 }
 
 /* ===== SEARCH ===== */
@@ -257,10 +275,16 @@ document.getElementById("search").addEventListener("input", e => {
 
   all.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
+
+      let icon = "file.png";
+      if (item.type === "folder") icon = "folder.png";
+      if (item.name.endsWith(".demo")) icon = "film.png";
+      if (item.name.endsWith(".gho")) icon = "file.png";
+
       container.appendChild(
         row(item.name, item.size || "", () => {
           if (item.type === "folder") render(item);
-        })
+        }, icon)
       );
     }
   });
