@@ -53,26 +53,16 @@ body::before {
   z-index: 5;
 
   display: flex;
-  padding: 8px 12px;
+  padding: 8px 140px 8px 12px; /* место справа под кнопку */
   background: rgba(255,255,255,0.06);
-  gap: 10px;
 }
 
-/* фикс ширины колонок */
-.header-name {
-  flex: 3;
-}
-
-.header-size {
-  flex: 1;
-  max-width: 120px;
-  text-align: right;
-}
+.header-name { flex: 3; }
+.header-size { flex: 1; max-width: 120px; text-align: right; }
 
 .header-cell {
   padding: 6px;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
 .header-cell:hover {
@@ -85,23 +75,17 @@ body::before {
   overflow-y: auto;
 }
 
-/* ===== СКРОЛЛ ===== */
 .file-list::-webkit-scrollbar {
   width: 10px;
 }
 .file-list::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.25);
-  border-radius: 6px;
-}
-.file-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.45);
 }
 
 /* ===== СТРОКА ===== */
 .file {
   display: flex;
   padding: 10px 12px;
-  font-size: 16px;
 }
 
 .file:hover {
@@ -112,22 +96,9 @@ body::before {
   background: rgba(255,255,255,0.18);
 }
 
-/* ===== КОЛОНКИ ===== */
-.name {
-  flex: 3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.name { flex: 3; overflow: hidden; white-space: nowrap; }
+.size { flex: 1; max-width: 120px; text-align: right; color: #aaa; }
 
-.size {
-  flex: 1;
-  max-width: 120px;
-  text-align: right;
-  color: #aaa;
-}
-
-/* ===== ИКОНКИ ===== */
 .icon {
   width: 18px;
   margin-right: 8px;
@@ -166,19 +137,51 @@ body::before {
   color: #fff;
 }
 
-/* ===== МУЗЫКА ===== */
+/* ===== MUSIC BUTTON ===== */
 .music-btn {
   position: fixed;
-  top: 12px;
+  top: 10px;
   right: 12px;
-  width: 26px;
-  height: 26px;
-  z-index: 999; /* поверх всего */
+  width: 28px;
+  height: 28px;
+  z-index: 10;
   opacity: 0.8;
 }
 
 .music-btn:hover {
   opacity: 1;
+}
+
+/* ===== MUSIC PANEL ===== */
+.music-panel {
+  position: fixed;
+  top: 50px;
+  right: 12px;
+  width: 180px;
+
+  background: rgba(255,255,255,0.06);
+  padding: 10px;
+  border-radius: 6px;
+
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.music-panel.show {
+  display: flex;
+}
+
+/* кнопка play */
+.music-play {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+/* громкость */
+.volume {
+  width: 100%;
 }
 
 /* ===== TOAST ===== */
@@ -200,7 +203,14 @@ body::before {
 
 <body>
 
-<img id="musicBtn" class="music-btn" src="play.png">
+<!-- кнопка -->
+<img id="musicToggle" class="music-btn" src="music.png">
+
+<!-- панель -->
+<div id="musicPanel" class="music-panel">
+  <img id="musicPlay" class="music-play" src="play.png">
+  <input id="volume" class="volume" type="range" min="0" max="1" step="0.01">
+</div>
 
 <audio id="music" loop>
   <source src="music_menu.mp3" type="audio/mpeg">
@@ -233,6 +243,7 @@ let selected = null;
 let nameAsc = true;
 let sizeAsc = true;
 
+/* ===== SIZE ===== */
 function parseSize(size) {
   if (!size) return 0;
   let [num, unit] = size.split(" ");
@@ -241,6 +252,7 @@ function parseSize(size) {
   return num;
 }
 
+/* ===== РЕНДЕР ===== */
 function render(folder) {
   const el = document.getElementById("files");
   el.innerHTML = "";
@@ -262,6 +274,7 @@ function render(folder) {
   });
 }
 
+/* ===== ROW ===== */
 function row(name, size, action, icon) {
   const div = document.createElement("div");
   div.className = "file";
@@ -283,6 +296,7 @@ function row(name, size, action, icon) {
   return div;
 }
 
+/* ===== SORT ===== */
 document.getElementById("header-name").onclick = () => {
   current.children.sort((a, b) =>
     nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
@@ -301,6 +315,7 @@ document.getElementById("header-size").onclick = () => {
   render(current);
 };
 
+/* ===== SEARCH ===== */
 document.getElementById("search").oninput = e => {
   const q = e.target.value.toLowerCase();
   if (!q) return render(current);
@@ -322,6 +337,7 @@ document.getElementById("clear").onclick = () => {
   render(current);
 };
 
+/* ===== FLATTEN ===== */
 function flatten(node) {
   let arr = [];
   if (node.children) {
@@ -333,6 +349,7 @@ function flatten(node) {
   return arr;
 }
 
+/* ===== COPY ===== */
 function copy(text) {
   navigator.clipboard.writeText(text);
   const t = document.getElementById("toast");
@@ -342,23 +359,40 @@ function copy(text) {
 
 /* ===== MUSIC ===== */
 const music = document.getElementById("music");
-const btn = document.getElementById("musicBtn");
+const toggle = document.getElementById("musicToggle");
+const panel = document.getElementById("musicPanel");
+const playBtn = document.getElementById("musicPlay");
+const volume = document.getElementById("volume");
 
 let playing = false;
 
-btn.onclick = () => {
+/* открыть панель */
+toggle.onclick = () => {
+  panel.classList.toggle("show");
+};
+
+/* play / pause */
+playBtn.onclick = () => {
   if (!playing) {
-    music.volume = 0.4;
-    music.play().catch(() => {});
-    btn.src = "pause.png";
+    music.play().catch(()=>{});
+    playBtn.src = "pause.png";
     playing = true;
   } else {
     music.pause();
-    btn.src = "play.png";
+    playBtn.src = "play.png";
     playing = false;
   }
 };
 
+/* громкость */
+volume.value = 0.4;
+music.volume = 0.4;
+
+volume.oninput = () => {
+  music.volume = volume.value;
+};
+
+/* ===== PARENTS ===== */
 function link(node, parent=null) {
   node.parent = parent;
   if (node.children) node.children.forEach(c => link(c, node));
@@ -371,6 +405,7 @@ fetch("./structure.json")
     link(root);
     render(root);
   });
+
 </script>
 
 </body>
