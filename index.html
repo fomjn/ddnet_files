@@ -43,8 +43,9 @@ body::before {
   position: sticky;
   top: 0;
   display: flex;
-  padding: 8px 140px 8px 12px;
+  padding: 8px 160px 8px 12px;
   background: rgba(255,255,255,0.06);
+  z-index: 5;
 }
 
 .header-cell {
@@ -58,7 +59,7 @@ body::before {
 .header-name { flex: 3; }
 .header-size { flex: 1; max-width: 120px; text-align: right; }
 
-/* ===== СПИСОК ===== */
+/* ===== LIST ===== */
 .file-list {
   height: calc(100% - 90px);
   overflow-y: auto;
@@ -75,8 +76,6 @@ body::before {
   flex: 3;
   display: flex;
   align-items: center;
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 .size {
@@ -92,15 +91,15 @@ body::before {
   font-size: 0.9em;
 }
 
-.progress.green { color: #4cff7a; }
-.progress.yellow { color: #ffd24c; }
-.progress.red { color: #ff5c5c; }
+.green { color: #4cff7a; }
+.yellow { color: #ffd24c; }
+.red { color: #ff5c5c; }
 
 .icon {
   width: 18px;
   height: 18px;
-  object-fit: contain;
   margin-right: 8px;
+  object-fit: contain;
 }
 
 /* ===== SEARCH ===== */
@@ -114,9 +113,8 @@ body::before {
 }
 
 .search img {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
+  width: 18px;
+  height: 18px;
   margin-right: 6px;
 }
 
@@ -156,6 +154,7 @@ body::before {
   display: none;
   flex-direction: column;
   gap: 10px;
+  z-index: 10;
 }
 .music-panel.show { display: flex; }
 
@@ -250,17 +249,17 @@ function countAll(folder){
   return c;
 }
 
-/* цвет прогресса */
-function getProgressClass(cur,max){
-  const p = cur/max;
-  if(p >= 1) return "green";
-  if(p >= 0.7) return "yellow";
+/* цвет */
+function getColor(cur,max){
+  const p=cur/max;
+  if(p>=1) return "green";
+  if(p>=0.7) return "yellow";
   return "red";
 }
 
 /* render */
 function render(folder, path=""){
-  const el = document.getElementById("files");
+  const el=document.getElementById("files");
   el.innerHTML="";
   current=folder;
   currentPath=path;
@@ -270,18 +269,18 @@ function render(folder, path=""){
   }
 
   folder.children.forEach(item=>{
-    let progressHTML = "";
+    let progressHTML="";
 
     if(item.type==="folder"){
-      const full = (path+"/"+item.name).replace(/^\/+/,"");
+      const full=(path+"/"+item.name).replace(/^\/+/,"");
       let count = path==="" ? countAll(item) : countFiles(item);
       let max = mapLimits[full];
 
       if(max){
-        const cls = getProgressClass(count,max);
-        progressHTML = `<span class="progress ${cls}">(${count} / ${max})</span>`;
-      }else if(count>0){
-        progressHTML = `<span class="progress">(${count})</span>`;
+        const cls=getColor(count,max);
+        progressHTML=`<span class="progress ${cls}">(${count}/${max})</span>`;
+      } else if(count>0){
+        progressHTML=`<span class="progress">(${count})</span>`;
       }
     }
 
@@ -291,12 +290,12 @@ function render(folder, path=""){
 
     el.appendChild(row(item.name,item.size,progressHTML,()=>{
       if(item.type==="folder"){
-        render(item, path+"/"+item.name);
+        render(item,path+"/"+item.name);
       }else{
         if(path.includes("demos") && path.includes("Rank 1s")){
-          const map = getMapName(item.name);
+          const map=getMapName(item.name);
           if(ddnetLinks[map]){
-            window.open(ddnetLinks[map], "_blank");
+            window.open(ddnetLinks[map],"_blank");
             return;
           }
         }
@@ -315,7 +314,7 @@ function row(name,size,progress,action,icon){
     <div class="name">
       <img class="icon" src="${icon}">
       ${name}
-      ${progress || ""}
+      ${progress||""}
     </div>
     <div class="size">${size||""}</div>
   `;
@@ -330,6 +329,49 @@ function row(name,size,progress,action,icon){
   return d;
 }
 
+/* ===== ПОИСК ===== */
+const searchInput=document.getElementById("search");
+
+searchInput.oninput=e=>{
+  const q=e.target.value.toLowerCase();
+
+  if(!q){
+    render(current,currentPath);
+    return;
+  }
+
+  const el=document.getElementById("files");
+  el.innerHTML="";
+
+  flatten(root).forEach(item=>{
+    if(item.name.toLowerCase().includes(q)){
+      let icon=item.type==="folder"?"folder.png":"file.png";
+      if(item.name.endsWith(".demo")) icon="film.png";
+
+      el.appendChild(row(item.name,item.size,"",()=>{
+        if(item.type==="folder") render(item);
+      },icon));
+    }
+  });
+};
+
+document.getElementById("clear").onclick=()=>{
+  searchInput.value="";
+  render(current,currentPath);
+};
+
+/* flatten */
+function flatten(n){
+  let arr=[];
+  if(n.children){
+    n.children.forEach(c=>{
+      arr.push(c);
+      if(c.children) arr=arr.concat(flatten(c));
+    });
+  }
+  return arr;
+}
+
 /* copy */
 function copy(t){
   navigator.clipboard.writeText(t);
@@ -338,7 +380,7 @@ function copy(t){
   setTimeout(()=>toast.classList.remove("show"),800);
 }
 
-/* музыка */
+/* ===== МУЗЫКА ===== */
 const music=document.getElementById("music");
 const toggle=document.getElementById("musicToggle");
 const panel=document.getElementById("musicPanel");
@@ -348,22 +390,34 @@ const volume=document.getElementById("volume");
 volume.value=localStorage.getItem("vol")||0.4;
 music.volume=volume.value;
 
+let playing=localStorage.getItem("playing")==="true";
+
 toggle.onclick=()=>panel.classList.toggle("show");
 
 playBtn.onclick=()=>{
   if(music.paused){
     music.play();
     playBtn.src="pause.png";
+    playing=true;
   }else{
     music.pause();
     playBtn.src="play.png";
+    playing=false;
   }
+  localStorage.setItem("playing",playing);
 };
 
 volume.oninput=()=>{
   music.volume=volume.value;
   localStorage.setItem("vol",volume.value);
 };
+
+/* автозапуск после клика */
+document.addEventListener("click", ()=>{
+  if(playing && music.paused){
+    music.play().catch(()=>{});
+  }
+}, { once:true });
 
 /* load */
 function link(n,p=null){
