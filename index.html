@@ -41,11 +41,12 @@ body::before {
   flex-direction: column;
 }
 
-/* header с сортировкой */
+/* HEADER */
 .header {
   display: flex;
-  padding: 6px 10px;
-  background: rgba(255,255,255,0.1);
+  padding: 6px;
+  background: #2a2d31;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .header-cell {
@@ -53,11 +54,12 @@ body::before {
   padding: 6px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.2s;
+  color: #ccc;
+  border-radius: 4px;
 }
 
 .header-cell:hover {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
 }
 
 /* список */
@@ -101,7 +103,6 @@ body::before {
 
 .search img {
   width: 16px;
-  height: 16px;
   margin-right: 6px;
 }
 
@@ -123,12 +124,7 @@ body::before {
   color: #ccc;
   font-size: 16px;
   margin-left: 6px;
-  cursor: pointer;
   border-radius: 4px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background 0.2s;
 }
 
 .search button:hover {
@@ -148,7 +144,6 @@ body::before {
 }
 
 .copy-toast.show { opacity: 1; }
-
 </style>
 </head>
 
@@ -156,17 +151,15 @@ body::before {
 
 <div class="container">
 
-  <!-- Заголовки с сортировкой -->
   <div class="header">
-    <div id="header-name" class="header-cell sortable">Name</div>
-    <div id="header-size" class="header-cell sortable">Size</div>
+    <div id="header-name" class="header-cell">Name</div>
+    <div id="header-size" class="header-cell">Size</div>
   </div>
 
   <div id="files" class="file-list"></div>
 
-  <!-- Поиск -->
   <div class="search">
-    <img src="loupe.png" alt="Search">
+    <img src="loupe.png">
     <input id="search" placeholder="Search">
     <button id="clear">×</button>
   </div>
@@ -178,54 +171,73 @@ body::before {
 <script>
 let root = null;
 let current = null;
+
 let nameAsc = true;
 let sizeAsc = true;
 
-/* ===== РЕНДЕР ===== */
+/* ===== SIZE PARSER ===== */
+function parseSize(size) {
+  if (!size) return 0;
+
+  const parts = size.split(" ");
+  const value = parseFloat(parts[0]);
+  const unit = parts[1]?.toUpperCase();
+
+  if (unit === "KB") return value * 1024;
+  if (unit === "MB") return value * 1024 * 1024;
+  if (unit === "GB") return value * 1024 * 1024 * 1024;
+
+  return value;
+}
+
+/* ===== SORT INDICATORS ===== */
+function updateSortIndicators(active, asc) {
+  document.getElementById("header-name").textContent = "Name";
+  document.getElementById("header-size").textContent = "Size";
+
+  const arrow = asc ? " ▲" : " ▼";
+
+  if (active === "name") {
+    document.getElementById("header-name").textContent += arrow;
+  } else {
+    document.getElementById("header-size").textContent += arrow;
+  }
+}
+
+/* ===== RENDER ===== */
 function render(folder) {
   const container = document.getElementById("files");
   container.innerHTML = "";
   current = folder;
 
-  // НАЗАД
+  if (!folder.children) return;
+
+  // назад
   if (folder.parent) {
-    container.appendChild(row(" ../", "", "", () => {
-      render(folder.parent);
-    }, "tree.png"));
+    container.appendChild(row("..", "", () => render(folder.parent)));
   }
 
   folder.children.forEach(item => {
     if (item.type === "folder") {
+      container.appendChild(row(item.name, "", () => render(item)));
+    } else {
       container.appendChild(
-        row(item.name, "", "", () => {
-          render(item);
-        }, "folder.png")
-      );
-    } else if (item.type === "file") {
-      let icon = "file.png";
-      if (item.name.endsWith(".demo")) icon = "film.png";
-      if (item.name.endsWith(".gho")) icon = "file.png";
-
-      container.appendChild(
-        row(item.name, item.size || "", item.date || "", () => {
+        row(item.name, item.size || "", () => {
           navigator.clipboard.writeText(item.name);
           showToast();
-        }, icon)
+        })
       );
     }
   });
 }
 
-/* ===== СТРОКА ===== */
-function row(name, size, date, click, icon) {
+/* ===== ROW ===== */
+function row(name, size, click) {
   const div = document.createElement("div");
   div.className = "file";
 
   div.innerHTML = `
-    <div class="name">
-      <img src="${icon}" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;">
-      ${name}
-    </div>
+    <div class="name">${name}</div>
     <div class="size">${size}</div>
   `;
 
@@ -233,86 +245,74 @@ function row(name, size, date, click, icon) {
   return div;
 }
 
-/* ===== FLATTEN TREE ===== */
-function flattenTree(node) {
-  let arr = [];
-  if (node.children) {
-    node.children.forEach(child => {
-      arr.push(child);
-      if (child.children) arr = arr.concat(flattenTree(child));
-    });
-  }
-  return arr;
-}
-
 /* ===== SEARCH ===== */
-const searchInput = document.getElementById("search");
-searchInput.addEventListener("input", e => {
+document.getElementById("search").addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
+  if (!q) return render(current);
+
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  if (!root || !current) return;
+  const all = flatten(root);
 
-  if (!q) {
-    render(current); // пустой поиск — текущая папка
-    return;
-  }
-
-  const allItems = flattenTree(root);
-  allItems.forEach(item => {
+  all.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
-      let icon = "file.png";
-      if (item.type === "folder") icon = "folder.png";
-      if (item.name.endsWith(".demo")) icon = "film.png";
-      if (item.name.endsWith(".gho")) icon = "file.png";
-
       container.appendChild(
-        row(
-          item.name,
-          item.size || "",
-          item.date || "",
-          () => { if (item.type === "folder") render(item); },
-          icon
-        )
+        row(item.name, item.size || "", () => {
+          if (item.type === "folder") render(item);
+        })
       );
     }
   });
 });
 
-/* ===== CLEAR BUTTON ===== */
+/* ===== FLATTEN ===== */
+function flatten(node) {
+  let arr = [];
+  if (node.children) {
+    node.children.forEach(child => {
+      arr.push(child);
+      if (child.children) arr = arr.concat(flatten(child));
+    });
+  }
+  return arr;
+}
+
+/* ===== CLEAR ===== */
 document.getElementById("clear").onclick = () => {
-  searchInput.value = "";
+  document.getElementById("search").value = "";
   render(current);
 };
 
-/* ===== SORT BY NAME ===== */
+/* ===== SORT NAME ===== */
 document.getElementById("header-name").onclick = () => {
-  if (!current || !current.children) return;
-
   current.children.sort((a, b) => {
-    if (a.name.toLowerCase() < b.name.toLowerCase()) return nameAsc ? -1 : 1;
-    if (a.name.toLowerCase() > b.name.toLowerCase()) return nameAsc ? 1 : -1;
-    return 0;
+    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+
+    return nameAsc
+      ? a.name.localeCompare(b.name)
+      : b.name.localeCompare(a.name);
   });
+
+  updateSortIndicators("name", nameAsc);
   nameAsc = !nameAsc;
   render(current);
 };
 
-/* ===== SORT BY SIZE ===== */
+/* ===== SORT SIZE ===== */
 document.getElementById("header-size").onclick = () => {
-  if (!current || !current.children) return;
-
   current.children.sort((a, b) => {
-    const sizeA = a.size ? parseFloat(a.size) : 0;
-    const sizeB = b.size ? parseFloat(b.size) : 0;
-    return sizeAsc ? sizeA - sizeB : sizeB - sizeA;
+    return sizeAsc
+      ? parseSize(a.size) - parseSize(b.size)
+      : parseSize(b.size) - parseSize(a.size);
   });
+
+  updateSortIndicators("size", sizeAsc);
   sizeAsc = !sizeAsc;
   render(current);
 };
 
-/* ===== PARENT LINKS ===== */
+/* ===== PARENTS ===== */
 function linkParents(node, parent=null) {
   node.parent = parent;
   if (node.children) {
@@ -334,11 +334,6 @@ fetch("./structure.json")
     root = json;
     linkParents(root);
     render(root);
-  })
-  .catch(err => {
-    console.error(err);
-    document.getElementById("files").innerHTML =
-      "<div style='padding:20px;color:red'>Ошибка загрузки JSON</div>";
   });
 </script>
 
