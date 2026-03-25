@@ -7,11 +7,7 @@
 <link rel="icon" href="logo.png">
 
 <style>
-* {
-  box-sizing: border-box;
-  cursor: url("cursor.png") 0 0, auto !important;
-  user-select: none;
-}
+* { box-sizing: border-box; cursor: url("cursor.png") 0 0, auto !important; user-select: none; }
 
 html, body {
   margin: 0;
@@ -21,7 +17,7 @@ html, body {
   overflow: hidden;
 }
 
-/* ===== ФОН ===== */
+/* фон */
 body::before {
   content: "";
   position: fixed;
@@ -38,103 +34,74 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* ===== HEADER ===== */
+/* header */
 .header {
   position: sticky;
   top: 0;
-  z-index: 5;
   display: flex;
   padding: 8px 140px 8px 12px;
   background: rgba(255,255,255,0.06);
 }
 
+.header-cell { padding: 6px; cursor: pointer; }
+.header-cell:hover { background: rgba(255,255,255,0.15); }
+
 .header-name { flex: 3; }
 .header-size { flex: 1; max-width: 120px; text-align: right; }
 
-.header-cell {
-  padding: 6px;
-  cursor: pointer;
-}
-
-.header-cell:hover {
-  background: rgba(255,255,255,0.15);
-}
-
-/* ===== СПИСОК ===== */
+/* список */
 .file-list {
   height: calc(100% - 90px);
   overflow-y: auto;
 }
 
-/* ===== СТРОКА ===== */
 .file {
   display: flex;
   padding: 10px 12px;
 }
-
-.file:hover {
-  background: rgba(255,255,255,0.08);
-}
-
-.file.active {
-  background: rgba(255,255,255,0.18);
-}
+.file:hover { background: rgba(255,255,255,0.08); }
+.file.active { background: rgba(255,255,255,0.18); }
 
 .name { flex: 3; overflow: hidden; white-space: nowrap; }
 .size { flex: 1; max-width: 120px; text-align: right; color: #aaa; }
 
-.icon {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  margin-right: 8px;
-}
+.icon { width: 18px; margin-right: 8px; }
 
-/* ===== SEARCH ===== */
+/* search */
 .search {
   position: fixed;
   bottom: 0;
   width: 100%;
   display: flex;
-  align-items: center;
-  padding: 8px 10px;
+  padding: 8px;
   background: rgba(255,255,255,0.06);
 }
 
-.search img {
-  width: 16px;
-  height: 16px;
-  margin-right: 6px;
-}
+.search img { width: 16px; margin-right: 6px; }
 
 .search input {
   flex: 1;
-  padding: 6px 8px;
-  height: 28px;
+  padding: 6px;
   background: rgba(255,255,255,0.08);
   border: none;
   color: #ccc;
 }
 
 .search button {
-  background: transparent;
+  background: none;
   border: none;
   color: #aaa;
   font-size: 18px;
   cursor: pointer;
 }
+.search button:hover { color: #fff; }
 
-.search button:hover {
-  color: #fff;
-}
-
-/* ===== MUSIC ===== */
+/* музыка */
 .music-btn {
   position: fixed;
   top: 10px;
   right: 12px;
   width: 28px;
-  z-index: 10;
 }
 
 .music-panel {
@@ -144,26 +111,13 @@ body::before {
   width: 180px;
   background: rgba(255,255,255,0.06);
   padding: 10px;
-  border-radius: 6px;
   display: none;
   flex-direction: column;
   gap: 10px;
 }
+.music-panel.show { display: flex; }
 
-.music-panel.show {
-  display: flex;
-}
-
-.music-play {
-  width: 24px;
-  cursor: pointer;
-}
-
-.volume {
-  width: 100%;
-}
-
-/* ===== TOAST ===== */
+/* toast */
 .copy-toast {
   position: fixed;
   bottom: 60px;
@@ -172,9 +126,7 @@ body::before {
   padding: 10px;
   border-radius: 6px;
   opacity: 0;
-  transition: 0.3s;
 }
-
 .copy-toast.show { opacity: 1; }
 </style>
 </head>
@@ -184,12 +136,12 @@ body::before {
 <img id="musicToggle" class="music-btn" src="music.png">
 
 <div id="musicPanel" class="music-panel">
-  <img id="musicPlay" class="music-play" src="play.png">
-  <input id="volume" class="volume" type="range" min="0" max="1" step="0.01">
+  <img id="musicPlay" src="play.png" width="24">
+  <input id="volume" type="range" min="0" max="1" step="0.01">
 </div>
 
 <audio id="music" loop>
-  <source src="music_menu.mp3" type="audio/mpeg">
+  <source src="music_menu.mp3">
 </audio>
 
 <div class="header">
@@ -209,25 +161,40 @@ body::before {
 
 <script>
 let root, current, selected;
+let currentPath = "";
 let nameAsc = true;
 let sizeAsc = true;
-let currentPath = "";
 
-/* ===== SIZE ===== */
-function parseSize(s){
-  if(!s) return 0;
-  let [n,u]=s.split(" ");
-  n=parseFloat(n);
-  if(u==="MB") return n*1024;
-  return n;
+/* лимиты */
+const mapLimits = {
+  "demos/DDNet/1 - Solo": 420,
+  "demos/DDNet/2 - Race": 126,
+  "demos/DDROCK/1 - Solo": 44,
+  "demos/DDROCK/2 - Race": 53,
+  "demos/KoG/1 - Solo": 33,
+  "demos/Unique/1 - Short": 451,
+  "demos/Unique/2 - Middle": 61,
+  "demos/Unique/3 - Long": 40,
+  "demos/Unique/4 - Fastcap": 86
+};
+
+/* счет */
+function countFiles(folder){
+  return folder.children?.filter(f=>f.type==="file").length || 0;
 }
 
-/* ===== MAP ===== */
-function getMapName(name){
-  return name.split("_")[0];
+function countAll(folder){
+  let c = 0;
+  if(folder.children){
+    folder.children.forEach(f=>{
+      if(f.type==="file") c++;
+      else c += countAll(f);
+    });
+  }
+  return c;
 }
 
-/* ===== РЕНДЕР ===== */
+/* render */
 function render(folder, path=""){
   const el = document.getElementById("files");
   el.innerHTML="";
@@ -239,28 +206,32 @@ function render(folder, path=""){
   }
 
   folder.children.forEach(item=>{
+    let display = item.name;
+
+    if(item.type==="folder"){
+      const full = (path+"/"+item.name).replace(/^\/+/,"");
+      let count = path==="" ? countAll(item) : countFiles(item);
+      let max = mapLimits[full];
+
+      if(max) display += ` (${count} / ${max})`;
+      else if(count>0) display += ` (${count})`;
+    }
+
     let icon="file.png";
     if(item.type==="folder") icon="folder.png";
     if(item.name.endsWith(".demo")) icon="film.png";
 
-    el.appendChild(row(item.name,item.size,()=>{
+    el.appendChild(row(display,item.size,()=>{
       if(item.type==="folder"){
-        render(item, path + "/" + item.name);
+        render(item, path+"/"+item.name);
       }else{
-        if(path.includes("demos")){
-          const map=getMapName(item.name);
-          if(ddnetLinks[map]){
-            window.open(ddnetLinks[map],"_blank");
-            return;
-          }
-        }
         copy(item.name);
       }
     },icon));
   });
 }
 
-/* ===== ROW ===== */
+/* row */
 function row(name,size,action,icon){
   const d=document.createElement("div");
   d.className="file";
@@ -280,21 +251,23 @@ function row(name,size,action,icon){
   return d;
 }
 
-/* ===== SEARCH ===== */
+/* поиск */
 document.getElementById("search").oninput=e=>{
   const q=e.target.value.toLowerCase();
 
-  if(!q){
-    render(current,currentPath);
-    return;
-  }
+  if(!q) return render(current,currentPath);
 
   const el=document.getElementById("files");
   el.innerHTML="";
 
   flatten(root).forEach(item=>{
     if(item.name.toLowerCase().includes(q)){
-      el.appendChild(row(item.name,item.size,()=>{}, "file.png"));
+      let icon=item.type==="folder"?"folder.png":"file.png";
+      if(item.name.endsWith(".demo")) icon="film.png";
+
+      el.appendChild(row(item.name,item.size||"",()=>{
+        if(item.type==="folder") render(item);
+      },icon));
     }
   });
 };
@@ -304,7 +277,15 @@ document.getElementById("clear").onclick=()=>{
   render(current,currentPath);
 };
 
-/* ===== SORT ===== */
+/* сортировка */
+function parseSize(s){
+  if(!s) return 0;
+  let [n,u]=s.split(" ");
+  n=parseFloat(n);
+  if(u==="MB") return n*1024;
+  return n;
+}
+
 document.getElementById("header-name").onclick=()=>{
   current.children.sort((a,b)=> nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
   nameAsc=!nameAsc;
@@ -317,7 +298,7 @@ document.getElementById("header-size").onclick=()=>{
   render(current,currentPath);
 };
 
-/* ===== FLATTEN ===== */
+/* flatten */
 function flatten(n){
   let arr=[];
   if(n.children){
@@ -329,7 +310,7 @@ function flatten(n){
   return arr;
 }
 
-/* ===== COPY ===== */
+/* copy */
 function copy(t){
   navigator.clipboard.writeText(t);
   const toast=document.getElementById("toast");
@@ -337,16 +318,7 @@ function copy(t){
   setTimeout(()=>toast.classList.remove("show"),800);
 }
 
-/* ===== DDNET LINKS ===== */
-const ddnetLinks={
-  "AIB Quest 4":"https://ddnet.org/maps/AIB-32-Quest-32-4",
-  "Aufnahmetest 2":"https://ddnet.org/maps/Aufnahmetest-32-2",
-  "Aufnahmetest 3":"https://ddnet.org/maps/Aufnahmetest-32-3",
-  "Aufnahmetest":"https://ddnet.org/maps/Aufnahmetest",
-  "DatWay":"https://ddnet.org/maps/DatWay"
-};
-
-/* ===== MUSIC ===== */
+/* музыка */
 const music=document.getElementById("music");
 const toggle=document.getElementById("musicToggle");
 const panel=document.getElementById("musicPanel");
@@ -359,25 +331,14 @@ music.volume=volume.value;
 let playing=localStorage.getItem("playing")==="true";
 
 if(playing){
-  music.play().catch(()=>{
-    playBtn.src="play.png";
-    playing=false;
-  });
-}else{
-  playBtn.src="play.png";
+  music.play().then(()=>playBtn.src="pause.png").catch(()=>playing=false);
 }
 
 toggle.onclick=()=>panel.classList.toggle("show");
 
-document.addEventListener("click",e=>{
-  if(!panel.contains(e.target)&&e.target!==toggle){
-    panel.classList.remove("show");
-  }
-});
-
 playBtn.onclick=()=>{
   if(!playing){
-    music.play().catch(()=>{});
+    music.play();
     playBtn.src="pause.png";
     playing=true;
   }else{
@@ -393,7 +354,7 @@ volume.oninput=()=>{
   localStorage.setItem("vol",volume.value);
 };
 
-/* ===== LOAD ===== */
+/* load */
 function link(n,p=null){
   n.parent=p;
   if(n.children) n.children.forEach(c=>link(c,n));
