@@ -12,7 +12,7 @@ html, body {
   overflow: hidden;
 }
 
-/* ===== ФОН ===== */
+/* ФОН */
 body::before {
   content: "";
   position: fixed;
@@ -29,7 +29,7 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* ===== HEADER ===== */
+/* HEADER */
 .header {
   position: sticky;
   top: 0;
@@ -37,21 +37,31 @@ body::before {
   padding: 8px 120px 8px 12px;
   background: rgba(255,255,255,0.06);
   z-index: 5;
+  gap: 0;
 }
 
+/* HEADER CELLS */
 .header-cell {
-  padding: 6px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
   cursor: pointer;
+  transition: 0.2s;
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
 }
+
+.header-name { flex: 3; text-align: left; padding-left: 12px; }
+.header-size { flex: 1; max-width: 120px; text-align: right; padding-right: 12px; }
 
 .header-cell:hover {
   background: rgba(255,255,255,0.15);
+  transform: scale(1.05);
 }
 
-.header-name { flex: 3; }
-.header-size { flex: 1; max-width: 120px; text-align: right; }
-
-/* ===== LIST ===== */
+/* LIST */
 .file-list {
   height: calc(100% - 90px);
   overflow-y: auto;
@@ -91,7 +101,7 @@ body::before {
   object-fit: contain;
 }
 
-/* ===== SEARCH ===== */
+/* SEARCH */
 .search {
   position: fixed;
   bottom: 0;
@@ -134,7 +144,7 @@ body::before {
   transform: scale(1.15);
 }
 
-/* ===== MUSIC ===== */
+/* MUSIC */
 .music-btn {
   position: fixed;
   top: 10px;
@@ -166,7 +176,7 @@ body::before {
   display: flex;
 }
 
-/* ===== TOAST ===== */
+/* TOAST */
 .copy-toast {
   position: fixed;
   bottom: 60px;
@@ -182,7 +192,7 @@ body::before {
   opacity: 1;
 }
 
-/* ===== CUSTOM SCROLL ===== */
+/* CUSTOM SCROLL */
 
 /* Chrome, Edge, Safari */
 ::-webkit-scrollbar {
