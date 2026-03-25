@@ -7,14 +7,13 @@
 <link rel="icon" href="logo.png">
 
 <style>
-* { box-sizing: border-box; }
+* { box-sizing: border-box; cursor: url("cursor.png") 0 0, auto !important; }
 
 html, body {
   margin: 0;
   height: 100%;
   font-family: Arial;
   color: #ddd;
-  cursor: url("cursor.png") 0 0, auto;
 }
 
 /* фон */
@@ -22,12 +21,10 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-
   background: url("bg_v3.png") repeat;
   background-size: 128px;
   animation: bg 6s linear infinite;
   filter: brightness(0.25);
-
   z-index: -1;
 }
 
@@ -98,7 +95,6 @@ body::before {
   border: none;
   color: #ccc;
   outline: none;
-
   caret-color: transparent;
 }
 
@@ -115,11 +111,6 @@ body::before {
 }
 
 .copy-toast.show { opacity: 1; }
-  
-input {
-  caret-color: transparent !important;
-  cursor: url("cursor.png"), auto !important;
-}
 
 </style>
 </head>
@@ -152,43 +143,45 @@ let current = null;
 function render(folder) {
   const container = document.getElementById("files");
   container.innerHTML = "";
+  current = folder;
 
   // НАЗАД
   if (folder.parent) {
-    container.appendChild(row("📁 ../", "", "", () => {
+    container.appendChild(row(" ../", "", "", () => {
       render(folder.parent);
-    }));
+    }, "tree.png"));
   }
 
   folder.children.forEach(item => {
-
     if (item.type === "folder") {
       container.appendChild(
-        row("📁 " + item.name, "", "", () => {
+        row(item.name, "", "", () => {
           render(item);
-        })
+        }, "folder.png")
       );
-    }
+    } else if (item.type === "file") {
+      // определяем иконку по расширению
+      let icon = "file.png";
+      if (item.name.endsWith(".demo")) icon = "film.png";
+      if (item.name.endsWith(".gho")) icon = "file.png";
 
-    if (item.type === "file") {
       container.appendChild(
-        row("📄 " + item.name, item.size || "", item.date || "", () => {
+        row(item.name, item.size || "", item.date || "", () => {
           navigator.clipboard.writeText(item.name);
           showToast();
-        })
+        }, icon)
       );
     }
-
   });
 }
 
 /* ===== СТРОКА ===== */
-function row(name, size, date, click) {
+function row(name, size, date, click, icon) {
   const div = document.createElement("div");
   div.className = "file";
 
   div.innerHTML = `
-    <div class="name">${name}</div>
+    <div class="name"><img src="${icon}" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;"> ${name}</div>
     <div class="size">${size}</div>
     <div class="date">${date}</div>
   `;
@@ -203,18 +196,22 @@ document.getElementById("search").addEventListener("input", e => {
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  if (!current) return;
+  if (!current || !current.children) return;
 
   current.children.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
+      let icon = "file.png";
+      if (item.type === "folder") icon = "folder.png";
+      if (item.name.endsWith(".demo")) icon = "film.png";
+      if (item.name.endsWith(".gho")) icon = "file.png";
+
       container.appendChild(
         row(
-          (item.type === "folder" ? "📁 " : "📄 ") + item.name,
+          item.name,
           item.size || "",
           item.date || "",
-          () => {
-            if (item.type === "folder") render(item);
-          }
+          () => { if (item.type === "folder") render(item); },
+          icon
         )
       );
     }
@@ -242,7 +239,6 @@ fetch("./structure.json")
   .then(json => {
     root = json;
     linkParents(root);
-    current = root;
     render(root);
   })
   .catch(err => {
