@@ -46,19 +46,30 @@ body::before {
   flex-direction: column;
 }
 
-/* ===== HEADER (как search) ===== */
+/* ===== HEADER ===== */
 .header {
   position: sticky;
   top: 0;
   z-index: 5;
 
   display: flex;
-  padding: 8px;
+  padding: 8px 12px;
   background: rgba(255,255,255,0.06);
+  gap: 10px;
+}
+
+/* фикс ширины колонок */
+.header-name {
+  flex: 3;
+}
+
+.header-size {
+  flex: 1;
+  max-width: 120px;
+  text-align: right;
 }
 
 .header-cell {
-  flex: 1;
   padding: 6px;
   cursor: pointer;
   transition: background 0.2s;
@@ -89,9 +100,8 @@ body::before {
 /* ===== СТРОКА ===== */
 .file {
   display: flex;
-  padding: 10px;
+  padding: 10px 12px;
   font-size: 16px;
-  transition: background 0.15s;
 }
 
 .file:hover {
@@ -112,6 +122,8 @@ body::before {
 
 .size {
   flex: 1;
+  max-width: 120px;
+  text-align: right;
   color: #aaa;
 }
 
@@ -140,12 +152,6 @@ body::before {
   background: rgba(255,255,255,0.08);
   border: none;
   color: #ccc;
-  outline: none;
-  transition: background 0.2s;
-}
-
-.search input:hover {
-  background: rgba(255,255,255,0.15);
 }
 
 .search button {
@@ -154,24 +160,21 @@ body::before {
   color: #aaa;
   font-size: 18px;
   cursor: pointer;
-  padding: 4px 8px;
-  transition: 0.2s;
 }
 
 .search button:hover {
   color: #fff;
-  background: rgba(255,255,255,0.15);
 }
 
 /* ===== МУЗЫКА ===== */
 .music-btn {
   position: fixed;
-  top: 10px;
-  right: 10px;
-  width: 28px;
-  height: 28px;
-  opacity: 0.7;
-  transition: 0.2s;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  z-index: 999; /* поверх всего */
+  opacity: 0.8;
 }
 
 .music-btn:hover {
@@ -197,7 +200,6 @@ body::before {
 
 <body>
 
-<!-- МУЗЫКА -->
 <img id="musicBtn" class="music-btn" src="play.png">
 
 <audio id="music" loop>
@@ -207,8 +209,8 @@ body::before {
 <div class="container">
 
   <div class="header">
-    <div id="header-name" class="header-cell">Name</div>
-    <div id="header-size" class="header-cell">Size</div>
+    <div id="header-name" class="header-cell header-name">Name</div>
+    <div id="header-size" class="header-cell header-size">Size</div>
   </div>
 
   <div id="files" class="file-list"></div>
@@ -231,7 +233,6 @@ let selected = null;
 let nameAsc = true;
 let sizeAsc = true;
 
-/* ===== SIZE ===== */
 function parseSize(size) {
   if (!size) return 0;
   let [num, unit] = size.split(" ");
@@ -240,7 +241,6 @@ function parseSize(size) {
   return num;
 }
 
-/* ===== РЕНДЕР ===== */
 function render(folder) {
   const el = document.getElementById("files");
   el.innerHTML = "";
@@ -262,7 +262,6 @@ function render(folder) {
   });
 }
 
-/* ===== ROW ===== */
 function row(name, size, action, icon) {
   const div = document.createElement("div");
   div.className = "file";
@@ -271,7 +270,7 @@ function row(name, size, action, icon) {
     <div class="name">
       <img class="icon" src="${icon}"> ${name}
     </div>
-    <div class="size">${size || ""}
+    <div class="size">${size || ""}</div>
   `;
 
   div.onclick = () => {
@@ -281,11 +280,9 @@ function row(name, size, action, icon) {
   };
 
   div.ondblclick = action;
-
   return div;
 }
 
-/* ===== SORT ===== */
 document.getElementById("header-name").onclick = () => {
   current.children.sort((a, b) =>
     nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
@@ -304,7 +301,6 @@ document.getElementById("header-size").onclick = () => {
   render(current);
 };
 
-/* ===== SEARCH ===== */
 document.getElementById("search").oninput = e => {
   const q = e.target.value.toLowerCase();
   if (!q) return render(current);
@@ -326,7 +322,6 @@ document.getElementById("clear").onclick = () => {
   render(current);
 };
 
-/* ===== FLATTEN ===== */
 function flatten(node) {
   let arr = [];
   if (node.children) {
@@ -338,7 +333,6 @@ function flatten(node) {
   return arr;
 }
 
-/* ===== COPY ===== */
 function copy(text) {
   navigator.clipboard.writeText(text);
   const t = document.getElementById("toast");
@@ -365,13 +359,11 @@ btn.onclick = () => {
   }
 };
 
-/* ===== PARENTS ===== */
 function link(node, parent=null) {
   node.parent = parent;
   if (node.children) node.children.forEach(c => link(c, node));
 }
 
-/* ===== LOAD ===== */
 fetch("./structure.json")
   .then(r => r.json())
   .then(data => {
