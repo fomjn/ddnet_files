@@ -38,14 +38,6 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* ===== КОНТЕЙНЕР ===== */
-.container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
 /* ===== HEADER ===== */
 .header {
   position: sticky;
@@ -53,7 +45,7 @@ body::before {
   z-index: 5;
 
   display: flex;
-  padding: 8px 140px 8px 12px; /* место справа под кнопку */
+  padding: 8px 140px 8px 12px;
   background: rgba(255,255,255,0.06);
 }
 
@@ -71,7 +63,7 @@ body::before {
 
 /* ===== СПИСОК ===== */
 .file-list {
-  flex: 1;
+  height: calc(100% - 90px);
   overflow-y: auto;
 }
 
@@ -106,8 +98,10 @@ body::before {
 
 /* ===== SEARCH ===== */
 .search {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
   display: flex;
-  align-items: center;
   padding: 8px;
   background: rgba(255,255,255,0.06);
 }
@@ -137,22 +131,15 @@ body::before {
   color: #fff;
 }
 
-/* ===== MUSIC BUTTON ===== */
+/* ===== MUSIC ===== */
 .music-btn {
   position: fixed;
   top: 10px;
   right: 12px;
   width: 28px;
-  height: 28px;
   z-index: 10;
-  opacity: 0.8;
 }
 
-.music-btn:hover {
-  opacity: 1;
-}
-
-/* ===== MUSIC PANEL ===== */
 .music-panel {
   position: fixed;
   top: 50px;
@@ -172,14 +159,11 @@ body::before {
   display: flex;
 }
 
-/* кнопка play */
 .music-play {
   width: 24px;
-  height: 24px;
   cursor: pointer;
 }
 
-/* громкость */
 .volume {
   width: 100%;
 }
@@ -187,7 +171,7 @@ body::before {
 /* ===== TOAST ===== */
 .copy-toast {
   position: fixed;
-  bottom: 20px;
+  bottom: 60px;
   right: 20px;
   background: #222;
   padding: 10px;
@@ -203,10 +187,8 @@ body::before {
 
 <body>
 
-<!-- кнопка -->
 <img id="musicToggle" class="music-btn" src="music.png">
 
-<!-- панель -->
 <div id="musicPanel" class="music-panel">
   <img id="musicPlay" class="music-play" src="play.png">
   <input id="volume" class="volume" type="range" min="0" max="1" step="0.01">
@@ -216,196 +198,212 @@ body::before {
   <source src="music_menu.mp3" type="audio/mpeg">
 </audio>
 
-<div class="container">
+<div class="header">
+  <div id="header-name" class="header-cell header-name">Name</div>
+  <div id="header-size" class="header-cell header-size">Size</div>
+</div>
 
-  <div class="header">
-    <div id="header-name" class="header-cell header-name">Name</div>
-    <div id="header-size" class="header-cell header-size">Size</div>
-  </div>
+<div id="files" class="file-list"></div>
 
-  <div id="files" class="file-list"></div>
-
-  <div class="search">
-    <img src="loupe.png">
-    <input id="search" placeholder="Search">
-    <button id="clear">×</button>
-  </div>
-
+<div class="search">
+  <img src="loupe.png">
+  <input id="search" placeholder="Search">
+  <button id="clear">×</button>
 </div>
 
 <div id="toast" class="copy-toast">Copied</div>
 
 <script>
-let root = null;
-let current = null;
-let selected = null;
-
+let root, current, selected;
 let nameAsc = true;
 let sizeAsc = true;
 
+/* ===== DDNET LINKS ===== */
+const ddnetLinks = {
+  "AIB Quest 4": "https://ddnet.org/maps/AIB-32-Quest-32-4",
+  "Aufnahmetest 2": "https://ddnet.org/maps/Aufnahmetest-32-2",
+  "Aufnahmetest 3": "https://ddnet.org/maps/Aufnahmetest-32-3",
+  "Aufnahmetest": "https://ddnet.org/maps/Aufnahmetest",
+  "DatWay": "https://ddnet.org/maps/DatWay"
+};
+
 /* ===== SIZE ===== */
-function parseSize(size) {
-  if (!size) return 0;
-  let [num, unit] = size.split(" ");
-  num = parseFloat(num);
-  if (unit === "MB") return num * 1024;
-  return num;
+function parseSize(s){
+  if(!s) return 0;
+  let [n,u]=s.split(" ");
+  n=parseFloat(n);
+  if(u==="MB") return n*1024;
+  return n;
+}
+
+/* ===== MAP NAME ===== */
+function getMapName(filename){
+  return filename.split("_")[0];
 }
 
 /* ===== РЕНДЕР ===== */
-function render(folder) {
+function render(folder){
   const el = document.getElementById("files");
-  el.innerHTML = "";
-  current = folder;
+  el.innerHTML="";
+  current=folder;
 
-  if (folder.parent) {
-    el.appendChild(row("../", "", () => render(folder.parent), "tree.png"));
+  if(folder.parent){
+    el.appendChild(row("../","",()=>render(folder.parent),"tree.png"));
   }
 
-  folder.children.forEach(item => {
-    let icon = "file.png";
-    if (item.type === "folder") icon = "folder.png";
-    if (item.name.endsWith(".demo")) icon = "film.png";
+  folder.children.forEach(item=>{
+    let icon="file.png";
+    if(item.type==="folder") icon="folder.png";
+    if(item.name.endsWith(".demo")) icon="film.png";
 
-    el.appendChild(row(item.name, item.size, () => {
-      if (item.type === "folder") render(item);
-      else copy(item.name);
-    }, icon));
+    el.appendChild(row(item.name,item.size,()=>{
+      if(item.type==="folder"){
+        render(item);
+      }else{
+        const map = getMapName(item.name);
+        if(ddnetLinks[map]){
+          window.open(ddnetLinks[map], "_blank");
+        }else{
+          copy(item.name);
+        }
+      }
+    },icon));
   });
 }
 
 /* ===== ROW ===== */
-function row(name, size, action, icon) {
-  const div = document.createElement("div");
-  div.className = "file";
+function row(name,size,action,icon){
+  const d=document.createElement("div");
+  d.className="file";
 
-  div.innerHTML = `
-    <div class="name">
-      <img class="icon" src="${icon}"> ${name}
-    </div>
-    <div class="size">${size || ""}</div>
+  d.innerHTML=`
+    <div class="name"><img class="icon" src="${icon}">${name}</div>
+    <div class="size">${size||""}</div>
   `;
 
-  div.onclick = () => {
-    if (selected) selected.classList.remove("active");
-    div.classList.add("active");
-    selected = div;
+  d.onclick=()=>{
+    if(selected) selected.classList.remove("active");
+    d.classList.add("active");
+    selected=d;
   };
 
-  div.ondblclick = action;
-  return div;
+  d.ondblclick=action;
+  return d;
 }
 
-/* ===== SORT ===== */
-document.getElementById("header-name").onclick = () => {
-  current.children.sort((a, b) =>
-    nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
-  );
-  nameAsc = !nameAsc;
-  render(current);
-};
-
-document.getElementById("header-size").onclick = () => {
-  current.children.sort((a, b) =>
-    sizeAsc
-      ? parseSize(a.size) - parseSize(b.size)
-      : parseSize(b.size) - parseSize(a.size)
-  );
-  sizeAsc = !sizeAsc;
-  render(current);
-};
-
 /* ===== SEARCH ===== */
-document.getElementById("search").oninput = e => {
-  const q = e.target.value.toLowerCase();
-  if (!q) return render(current);
+document.getElementById("search").oninput=e=>{
+  const q=e.target.value.toLowerCase();
+  if(!q) return render(current);
 
-  const el = document.getElementById("files");
-  el.innerHTML = "";
+  const el=document.getElementById("files");
+  el.innerHTML="";
 
-  const all = flatten(root);
-
-  all.forEach(item => {
-    if (item.name.toLowerCase().includes(q)) {
-      el.appendChild(row(item.name, item.size, () => {}, "file.png"));
+  flatten(root).forEach(i=>{
+    if(i.name.toLowerCase().includes(q)){
+      el.appendChild(row(i.name,i.size,()=>{}, "file.png"));
     }
   });
 };
 
-document.getElementById("clear").onclick = () => {
-  document.getElementById("search").value = "";
+document.getElementById("clear").onclick=()=>{
+  document.getElementById("search").value="";
+  render(current);
+};
+
+/* ===== SORT ===== */
+document.getElementById("header-name").onclick=()=>{
+  current.children.sort((a,b)=> nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+  nameAsc=!nameAsc;
+  render(current);
+};
+
+document.getElementById("header-size").onclick=()=>{
+  current.children.sort((a,b)=> sizeAsc ? parseSize(a.size)-parseSize(b.size) : parseSize(b.size)-parseSize(a.size));
+  sizeAsc=!sizeAsc;
   render(current);
 };
 
 /* ===== FLATTEN ===== */
-function flatten(node) {
-  let arr = [];
-  if (node.children) {
-    node.children.forEach(c => {
+function flatten(n){
+  let arr=[];
+  if(n.children){
+    n.children.forEach(c=>{
       arr.push(c);
-      if (c.children) arr = arr.concat(flatten(c));
+      if(c.children) arr=arr.concat(flatten(c));
     });
   }
   return arr;
 }
 
 /* ===== COPY ===== */
-function copy(text) {
-  navigator.clipboard.writeText(text);
-  const t = document.getElementById("toast");
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 800);
+function copy(t){
+  navigator.clipboard.writeText(t);
+  const toast=document.getElementById("toast");
+  toast.classList.add("show");
+  setTimeout(()=>toast.classList.remove("show"),800);
 }
 
 /* ===== MUSIC ===== */
-const music = document.getElementById("music");
-const toggle = document.getElementById("musicToggle");
-const panel = document.getElementById("musicPanel");
-const playBtn = document.getElementById("musicPlay");
-const volume = document.getElementById("volume");
+const music=document.getElementById("music");
+const toggle=document.getElementById("musicToggle");
+const panel=document.getElementById("musicPanel");
+const playBtn=document.getElementById("musicPlay");
+const volume=document.getElementById("volume");
 
-let playing = false;
+/* restore */
+volume.value = localStorage.getItem("vol") || 0.4;
+music.volume = volume.value;
 
-/* открыть панель */
-toggle.onclick = () => {
-  panel.classList.toggle("show");
-};
+let playing = localStorage.getItem("playing")==="true";
+if(playing){
+  music.play().catch(()=>{});
+  playBtn.src="pause.png";
+}
 
-/* play / pause */
-playBtn.onclick = () => {
-  if (!playing) {
-    music.play().catch(()=>{});
-    playBtn.src = "pause.png";
-    playing = true;
-  } else {
-    music.pause();
-    playBtn.src = "play.png";
-    playing = false;
+/* toggle panel */
+toggle.onclick=()=> panel.classList.toggle("show");
+
+/* click outside */
+document.addEventListener("click", e=>{
+  if(!panel.contains(e.target) && e.target!==toggle){
+    panel.classList.remove("show");
   }
+});
+
+/* play */
+playBtn.onclick=()=>{
+  if(!playing){
+    music.play().catch(()=>{});
+    playBtn.src="pause.png";
+    playing=true;
+  }else{
+    music.pause();
+    playBtn.src="play.png";
+    playing=false;
+  }
+  localStorage.setItem("playing", playing);
 };
 
-/* громкость */
-volume.value = 0.4;
-music.volume = 0.4;
-
-volume.oninput = () => {
-  music.volume = volume.value;
+/* volume */
+volume.oninput=()=>{
+  music.volume=volume.value;
+  localStorage.setItem("vol", volume.value);
 };
 
 /* ===== PARENTS ===== */
-function link(node, parent=null) {
-  node.parent = parent;
-  if (node.children) node.children.forEach(c => link(c, node));
+function link(n,p=null){
+  n.parent=p;
+  if(n.children) n.children.forEach(c=>link(c,n));
 }
 
-fetch("./structure.json")
-  .then(r => r.json())
-  .then(data => {
-    root = data;
-    link(root);
-    render(root);
-  });
-
+fetch("structure.json")
+.then(r=>r.json())
+.then(data=>{
+  root=data;
+  link(root);
+  render(root);
+});
 </script>
 
 </body>
