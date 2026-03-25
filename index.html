@@ -41,14 +41,24 @@ body::before {
   flex-direction: column;
 }
 
-/* header */
+/* header с сортировкой */
 .header {
   display: flex;
-  padding: 10px;
-  background: linear-gradient(#5f6368, #3a3d42);
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.1);
 }
 
-.header div { flex: 1; }
+.header-cell {
+  flex: 1;
+  padding: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.header-cell:hover {
+  background: rgba(255,255,255,0.2);
+}
 
 /* список */
 .file-list {
@@ -80,7 +90,6 @@ body::before {
 }
 
 .size { flex: 1; }
-.date { flex: 2; }
 
 /* поиск */
 .search {
@@ -107,12 +116,23 @@ body::before {
 }
 
 .search button {
-  background: none;
+  width: 24px;
+  height: 24px;
+  background: rgba(255,255,255,0.05);
   border: none;
   color: #ccc;
   font-size: 16px;
   margin-left: 6px;
   cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.search button:hover {
+  background: rgba(255,255,255,0.1);
 }
 
 /* toast */
@@ -136,42 +156,20 @@ body::before {
 
 <div class="container">
 
+  <!-- Заголовки с сортировкой -->
   <div class="header">
-    <div>Name</div>
-    <div>Size</div>
-    <div>Date</div>
+    <div id="header-name" class="header-cell sortable">Name</div>
+    <div id="header-size" class="header-cell sortable">Size</div>
   </div>
 
   <div id="files" class="file-list"></div>
 
-<!-- SEARCH -->
-<div class="search">
-  <img src="loupe.png" alt="Search">
-  <input id="search" placeholder="Search">
-  <button id="clear">×</button>
-</div>
-
-<style>
-.search button {
-  width: 24px;
-  height: 24px;
-  background: rgba(255,255,255,0.05);
-  border: none;
-  color: #ccc;
-  font-size: 16px;
-  margin-left: 6px;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background 0.2s;
-}
-
-.search button:hover {
-  background: rgba(255,255,255,0.1);
-}
-</style>
+  <!-- Поиск -->
+  <div class="search">
+    <img src="loupe.png" alt="Search">
+    <input id="search" placeholder="Search">
+    <button id="clear">×</button>
+  </div>
 
 </div>
 
@@ -180,6 +178,8 @@ body::before {
 <script>
 let root = null;
 let current = null;
+let nameAsc = true;
+let sizeAsc = true;
 
 /* ===== РЕНДЕР ===== */
 function render(folder) {
@@ -227,14 +227,13 @@ function row(name, size, date, click, icon) {
       ${name}
     </div>
     <div class="size">${size}</div>
-    <div class="date">${date}</div>
   `;
 
   div.onclick = click;
   return div;
 }
 
-/* ===== ПОИСК ПО ВСЕМУ ДЕРЕВУ ===== */
+/* ===== FLATTEN TREE ===== */
 function flattenTree(node) {
   let arr = [];
   if (node.children) {
@@ -246,7 +245,7 @@ function flattenTree(node) {
   return arr;
 }
 
-// ===== SEARCH =====
+/* ===== SEARCH ===== */
 const searchInput = document.getElementById("search");
 searchInput.addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
@@ -256,14 +255,11 @@ searchInput.addEventListener("input", e => {
   if (!root || !current) return;
 
   if (!q) {
-    // Пустой поиск — показываем текущую папку
-    render(current);
+    render(current); // пустой поиск — текущая папка
     return;
   }
 
-  // Поиск по всему дереву
   const allItems = flattenTree(root);
-
   allItems.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
       let icon = "file.png";
@@ -284,10 +280,36 @@ searchInput.addEventListener("input", e => {
   });
 });
 
-// ===== CLEAR BUTTON =====
+/* ===== CLEAR BUTTON ===== */
 document.getElementById("clear").onclick = () => {
   searchInput.value = "";
-  render(current); // теперь рендерим текущую папку, а не весь корень
+  render(current);
+};
+
+/* ===== SORT BY NAME ===== */
+document.getElementById("header-name").onclick = () => {
+  if (!current || !current.children) return;
+
+  current.children.sort((a, b) => {
+    if (a.name.toLowerCase() < b.name.toLowerCase()) return nameAsc ? -1 : 1;
+    if (a.name.toLowerCase() > b.name.toLowerCase()) return nameAsc ? 1 : -1;
+    return 0;
+  });
+  nameAsc = !nameAsc;
+  render(current);
+};
+
+/* ===== SORT BY SIZE ===== */
+document.getElementById("header-size").onclick = () => {
+  if (!current || !current.children) return;
+
+  current.children.sort((a, b) => {
+    const sizeA = a.size ? parseFloat(a.size) : 0;
+    const sizeB = b.size ? parseFloat(b.size) : 0;
+    return sizeAsc ? sizeA - sizeB : sizeB - sizeA;
+  });
+  sizeAsc = !sizeAsc;
+  render(current);
 };
 
 /* ===== PARENT LINKS ===== */
