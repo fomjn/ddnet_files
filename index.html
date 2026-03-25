@@ -10,6 +10,7 @@
 * {
   box-sizing: border-box;
   cursor: url("cursor.png") 0 0, auto !important;
+  user-select: none; /* УБРАЛИ ВЫДЕЛЕНИЕ */
 }
 
 html, body {
@@ -17,6 +18,8 @@ html, body {
   height: 100%;
   font-family: Arial, sans-serif;
   color: #ddd;
+  overflow: hidden;
+  touch-action: none; /* важно для телефона */
 }
 
 /* ===== ФОН ===== */
@@ -49,15 +52,12 @@ body::before {
   display: flex;
   padding: 6px 10px;
   background: rgba(255,255,255,0.06);
-  backdrop-filter: blur(4px);
 }
 
 .header-cell {
   flex: 1;
   padding: 6px;
   cursor: pointer;
-  user-select: none;
-  transition: background 0.2s;
 }
 
 .header-cell:hover {
@@ -71,14 +71,14 @@ body::before {
 /* ===== СПИСОК ===== */
 .file-list {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* ===== СТРОКА ===== */
 .file {
   display: flex;
-  padding: 6px 10px;
-  transition: background 0.15s;
+  padding: 10px;
+  font-size: 16px;
 }
 
 .file:hover {
@@ -87,15 +87,14 @@ body::before {
 
 .file.active {
   background: rgba(255,255,255,0.18);
-  color: #fff;
 }
 
 /* ===== КОЛОНКИ ===== */
 .name {
   flex: 3;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .size {
@@ -106,39 +105,20 @@ body::before {
 /* ===== SEARCH ===== */
 .search {
   display: flex;
-  align-items: center;
-  padding: 6px;
+  padding: 8px;
   background: rgba(255,255,255,0.06);
-  backdrop-filter: blur(4px);
-}
-
-.search img {
-  width: 16px;
-  margin-right: 6px;
 }
 
 .search input {
   flex: 1;
-  padding: 6px;
+  padding: 8px;
   background: rgba(255,255,255,0.08);
   border: none;
   color: #ccc;
-  outline: none;
 }
 
 .search button {
-  width: 24px;
-  height: 24px;
   margin-left: 6px;
-  background: rgba(255,255,255,0.08);
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.search button:hover {
-  background: rgba(255,255,255,0.15);
 }
 
 /* ===== TOAST ===== */
@@ -170,7 +150,6 @@ body::before {
   <div id="files" class="file-list"></div>
 
   <div class="search">
-    <img src="loupe.png">
     <input id="search" placeholder="Search">
     <button id="clear">×</button>
   </div>
@@ -182,22 +161,16 @@ body::before {
 <script>
 let root = null;
 let current = null;
-
 let selectedElement = null;
-let sortMode = null;
-let sortAsc = true;
 
-/* ===== SIZE PARSER ===== */
+let lastTap = 0;
+
+/* ===== SIZE ===== */
 function parseSize(size) {
   if (!size) return 0;
-
   let [num, unit] = size.split(" ");
   num = parseFloat(num);
-
-  if (unit === "KB") return num;
   if (unit === "MB") return num * 1024;
-  if (unit === "GB") return num * 1024 * 1024;
-
   return num;
 }
 
@@ -207,91 +180,67 @@ function render(folder) {
   container.innerHTML = "";
   current = folder;
 
-  let items = [...folder.children];
-
-  if (sortMode === "name") {
-    items.sort((a,b) => sortAsc
-      ? a.name.localeCompare(b.name)
-      : b.name.localeCompare(a.name));
-  }
-
-  if (sortMode === "size") {
-    items.sort((a,b) => sortAsc
-      ? parseSize(a.size) - parseSize(b.size)
-      : parseSize(b.size) - parseSize(a.size));
-  }
-
-  // НАЗАД
   if (folder.parent) {
     container.appendChild(createRow("../", "", () => render(folder.parent), "tree.png"));
   }
 
-  items.forEach(item => {
-    let icon = "file.png";
-    if (item.type === "folder") icon = "folder.png";
+  folder.children.forEach(item => {
+    let icon = item.type === "folder" ? "folder.png" : "file.png";
     if (item.name.endsWith(".demo")) icon = "film.png";
 
-    const row = createRow(item.name, item.size || "", () => {
+    container.appendChild(createRow(item.name, item.size, () => {
       if (item.type === "folder") render(item);
       else copy(item.name);
-    }, icon);
-
-    container.appendChild(row);
+    }, icon));
   });
 }
 
-/* ===== СТРОКА ===== */
+/* ===== ROW ===== */
 function createRow(name, size, action, icon) {
   const div = document.createElement("div");
   div.className = "file";
 
   div.innerHTML = `
     <div class="name">
-      <img src="${icon}" width="16" style="margin-right:6px;">
-      ${name}
+      <img src="${icon}" width="16"> ${name}
     </div>
-    <div class="size">${size}</div>
+    <div class="size">${size || ""}</div>
   `;
 
-  div.onclick = () => {
+  div.addEventListener("click", e => {
     if (selectedElement) selectedElement.classList.remove("active");
     div.classList.add("active");
     selectedElement = div;
-  };
 
-  div.ondblclick = action;
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      action();
+    }
+    lastTap = now;
+  });
 
   return div;
 }
 
 /* ===== SEARCH ===== */
-const searchInput = document.getElementById("search");
-
-searchInput.oninput = e => {
+document.getElementById("search").oninput = e => {
   const q = e.target.value.toLowerCase();
+  if (!q) return render(current);
 
-  if (!q) {
-    render(current);
-    return;
-  }
-
-  const all = flatten(root);
   const container = document.getElementById("files");
   container.innerHTML = "";
 
+  const all = flatten(root);
+
   all.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
-      let icon = item.type === "folder" ? "folder.png" : "file.png";
-      if (item.name.endsWith(".demo")) icon = "film.png";
-
-      container.appendChild(createRow(item.name, item.size, () => {}, icon));
+      container.appendChild(createRow(item.name, item.size, () => {}, "file.png"));
     }
   });
 };
 
-/* КНОПКА ОЧИСТКИ */
 document.getElementById("clear").onclick = () => {
-  searchInput.value = "";
+  document.getElementById("search").value = "";
   render(current);
 };
 
@@ -307,25 +256,39 @@ function flatten(node) {
   return arr;
 }
 
-/* ===== SORT ===== */
-function setActiveHeader(id) {
-  document.querySelectorAll(".header-cell").forEach(h => h.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
+/* ===== SCROLL ===== */
+const list = document.getElementById("files");
 
-document.getElementById("header-name").onclick = () => {
-  sortMode = "name";
-  sortAsc = !sortAsc;
-  setActiveHeader("header-name");
-  render(current);
-};
+let isDown = false;
+let startY = 0;
+let scrollTop = 0;
+let velocity = 0;
+let lastY = 0;
 
-document.getElementById("header-size").onclick = () => {
-  sortMode = "size";
-  sortAsc = !sortAsc;
-  setActiveHeader("header-size");
-  render(current);
-};
+/* мышь */
+list.addEventListener("mousedown", e => {
+  isDown = true;
+  startY = e.clientY;
+  scrollTop = list.scrollTop;
+});
+
+document.addEventListener("mouseup", () => isDown = false);
+
+document.addEventListener("mousemove", e => {
+  if (!isDown) return;
+  list.scrollTop = scrollTop - (e.clientY - startY);
+});
+
+/* телефон */
+list.addEventListener("touchstart", e => {
+  startY = e.touches[0].clientY;
+  scrollTop = list.scrollTop;
+});
+
+list.addEventListener("touchmove", e => {
+  const y = e.touches[0].clientY;
+  list.scrollTop = scrollTop - (y - startY);
+});
 
 /* ===== COPY ===== */
 function copy(text) {
@@ -349,55 +312,6 @@ fetch("./structure.json")
     link(root);
     render(root);
   });
-
-/* ===== DDNET SCROLL ===== */
-const list = document.getElementById("files");
-
-let isDown = false;
-let startY = 0;
-let scrollTop = 0;
-let velocity = 0;
-let lastY = 0;
-let frame;
-
-/* DRAG */
-list.addEventListener("mousedown", e => {
-  isDown = true;
-  startY = e.clientY;
-  scrollTop = list.scrollTop;
-  velocity = 0;
-  lastY = e.clientY;
-});
-
-document.addEventListener("mouseup", () => {
-  isDown = false;
-
-  // инерция
-  cancelAnimationFrame(frame);
-  function inertia() {
-    if (Math.abs(velocity) < 0.1) return;
-    list.scrollTop -= velocity;
-    velocity *= 0.95;
-    frame = requestAnimationFrame(inertia);
-  }
-  inertia();
-});
-
-document.addEventListener("mousemove", e => {
-  if (!isDown) return;
-
-  const dy = e.clientY - startY;
-  list.scrollTop = scrollTop - dy;
-
-  velocity = e.clientY - lastY;
-  lastY = e.clientY;
-});
-
-/* WHEEL BOOST */
-list.addEventListener("wheel", e => {
-  e.preventDefault();
-  list.scrollTop += e.deltaY * 1.5;
-}, { passive: false });
 
 </script>
 
