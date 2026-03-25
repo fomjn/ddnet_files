@@ -45,7 +45,7 @@ body::before {
 .header {
   display: flex;
   padding: 6px 10px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.1); /* общий базовый цвет с поиском */
 }
 
 .header-cell {
@@ -96,7 +96,7 @@ body::before {
   display: flex;
   align-items: center;
   padding: 6px;
-  background: #2a2d31;
+  background: rgba(255,255,255,0.1); /* базовый фон одинаковый с заголовками */
 }
 
 .search img {
@@ -108,11 +108,16 @@ body::before {
 .search input {
   flex: 1;
   padding: 6px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.1); /* базовый фон */
   border: none;
   color: #ccc;
   outline: none;
   caret-color: #fff;
+  transition: background 0.2s;
+}
+
+.search input:hover {
+  background: rgba(255,255,255,0.2);
 }
 
 .search button {
@@ -132,7 +137,7 @@ body::before {
 }
 
 .search button:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.2);
 }
 
 /* toast */
@@ -207,7 +212,7 @@ function render(folder) {
       if (item.name.endsWith(".gho")) icon = "file.png";
 
       container.appendChild(
-        row(item.name, item.size || "", item.date || "", () => {
+        row(item.name, item.size || "", () => {
           navigator.clipboard.writeText(item.name);
           showToast();
         }, icon)
@@ -217,7 +222,7 @@ function render(folder) {
 }
 
 /* ===== СТРОКА ===== */
-function row(name, size, date, click, icon) {
+function row(name, size, click, icon) {
   const div = document.createElement("div");
   div.className = "file";
 
@@ -243,6 +248,17 @@ function flattenTree(node) {
     });
   }
   return arr;
+}
+
+/* ===== CONVERT SIZE TO BYTES ===== */
+function sizeToBytes(sizeStr) {
+  if (!sizeStr) return 0;
+  const units = { B: 1, KB: 1024, MB: 1024*1024, GB: 1024*1024*1024 };
+  const match = sizeStr.match(/([\d,.]+)\s*(B|KB|MB|GB)/i);
+  if (!match) return parseFloat(sizeStr) || 0;
+  let num = parseFloat(match[1].replace(',', '.'));
+  let unit = match[2].toUpperCase();
+  return num * (units[unit] || 1);
 }
 
 /* ===== SEARCH ===== */
@@ -271,7 +287,6 @@ searchInput.addEventListener("input", e => {
         row(
           item.name,
           item.size || "",
-          item.date || "",
           () => { if (item.type === "folder") render(item); },
           icon
         )
@@ -304,8 +319,8 @@ document.getElementById("header-size").onclick = () => {
   if (!current || !current.children) return;
 
   current.children.sort((a, b) => {
-    const sizeA = a.size ? parseFloat(a.size) : 0;
-    const sizeB = b.size ? parseFloat(b.size) : 0;
+    const sizeA = sizeToBytes(a.size);
+    const sizeB = sizeToBytes(b.size);
     return sizeAsc ? sizeA - sizeB : sizeB - sizeA;
   });
   sizeAsc = !sizeAsc;
@@ -327,7 +342,7 @@ function showToast() {
   setTimeout(() => t.classList.remove("show"), 800);
 }
 
-/* ===== LOAD ===== */
+/* ===== LOAD JSON ===== */
 fetch("./structure.json")
   .then(r => r.json())
   .then(json => {
