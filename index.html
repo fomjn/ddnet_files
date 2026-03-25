@@ -59,7 +59,7 @@ body::before {
 .header-name { flex: 3; }
 .header-size { flex: 1; max-width: 120px; text-align: right; }
 
-/* ===== СПИСОК ===== */
+/* ===== LIST ===== */
 .file-list {
   height: calc(100% - 90px);
   overflow-y: auto;
@@ -86,16 +86,6 @@ body::before {
   color: #aaa;
 }
 
-.progress {
-  margin-left: auto;
-  margin-right: 10px;
-  font-size: 0.9em;
-}
-
-.green { color: #4cff7a; }
-.yellow { color: #ffd24c; }
-.red { color: #ff5c5c; }
-
 .icon {
   width: 18px;
   height: 18px;
@@ -114,11 +104,12 @@ body::before {
 }
 
 .search img {
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
   object-fit: contain;
-  margin-right: 6px;
+  margin-right: 8px;
+  display: block;
 }
 
 .search input {
@@ -208,20 +199,7 @@ body::before {
 let root, current, selected;
 let currentPath = "";
 
-/* ===== DDNET LINKS ===== */
-const ddnetLinks = {
-  "AIB Quest 4": "https://ddnet.org/maps/AIB-32-Quest-32-4",
-  "Aufnahmetest 2": "https://ddnet.org/maps/Aufnahmetest-32-2",
-  "Aufnahmetest 3": "https://ddnet.org/maps/Aufnahmetest-32-3",
-  "Aufnahmetest": "https://ddnet.org/maps/Aufnahmetest",
-  "DatWay": "https://ddnet.org/maps/DatWay"
-};
-
-function getMapName(name){
-  return name.split("_")[0];
-}
-
-/* ===== РЕНДЕР ===== */
+/* ===== RENDER ===== */
 function render(folder, path=""){
   const el = document.getElementById("files");
   el.innerHTML = "";
@@ -230,7 +208,7 @@ function render(folder, path=""){
 
   if (folder.parent) {
     const newPath = path.split("/").slice(0, -1).join("/");
-    el.appendChild(row("../", "", "", () => render(folder.parent, newPath), "tree.png"));
+    el.appendChild(row("../", "", () => render(folder.parent, newPath), "tree.png"));
   }
 
   folder.children.forEach(item => {
@@ -239,17 +217,10 @@ function render(folder, path=""){
     if (item.name.endsWith(".demo")) icon = "film.png";
 
     el.appendChild(
-      row(item.name, item.size || "", "", () => {
+      row(item.name, item.size || "", () => {
         if (item.type === "folder") {
           render(item, path + "/" + item.name);
         } else {
-          if (path.includes("demos") && path.includes("Rank 1s")) {
-            const map = getMapName(item.name);
-            if (ddnetLinks[map]) {
-              window.open(ddnetLinks[map], "_blank");
-              return;
-            }
-          }
           copy(item.name);
         }
       }, icon)
@@ -258,7 +229,7 @@ function render(folder, path=""){
 }
 
 /* ===== ROW ===== */
-function row(name, size, progress, action, icon) {
+function row(name, size, action, icon){
   const d = document.createElement("div");
   d.className = "file";
 
@@ -266,7 +237,6 @@ function row(name, size, progress, action, icon) {
     <div class="name">
       <img class="icon" src="${icon}">
       ${name}
-      ${progress || ""}
     </div>
     <div class="size">${size || ""}</div>
   `;
@@ -302,11 +272,9 @@ searchInput.oninput = e => {
     ) {
       let icon = item.name.endsWith(".demo") ? "film.png" : "file.png";
 
-      el.appendChild(
-        row(item.name, item.size || "", "", () => {
-          copy(item.name);
-        }, icon)
-      );
+      el.appendChild(row(item.name, item.size || "", () => {
+        copy(item.name);
+      }, icon));
     }
   });
 };
@@ -316,66 +284,127 @@ document.getElementById("clear").onclick = () => {
   render(current, currentPath);
 };
 
+/* ===== SORT ===== */
+let nameAsc = true;
+let sizeAsc = true;
+
+document.getElementById("header-name").onclick = () => {
+  if (!current || !current.children) return;
+
+  current.children.sort((a,b)=>
+    nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
+  );
+
+  nameAsc = !nameAsc;
+  render(current, currentPath);
+};
+
+document.getElementById("header-size").onclick = () => {
+  if (!current || !current.children) return;
+
+  current.children.sort((a,b)=>{
+    const sa = parseSize(a.size);
+    const sb = parseSize(b.size);
+    return sizeAsc ? sa - sb : sb - sa;
+  });
+
+  sizeAsc = !sizeAsc;
+  render(current, currentPath);
+};
+
+function parseSize(s){
+  if(!s) return 0;
+  let n = parseFloat(s);
+  if(s.includes("MB")) return n * 1024;
+  if(s.includes("KB")) return n;
+  return n;
+}
+
 /* ===== FLATTEN ===== */
-function flatten(node) {
-  let arr = [];
-  if (node.children) {
-    node.children.forEach(child => {
-      if (child.type === "file") arr.push(child);
-      if (child.children) arr = arr.concat(flatten(child));
+function flatten(node){
+  let arr=[];
+  if(node.children){
+    node.children.forEach(c=>{
+      if(c.type==="file") arr.push(c);
+      if(c.children) arr=arr.concat(flatten(c));
     });
   }
   return arr;
 }
 
 /* ===== COPY ===== */
-function copy(text) {
+function copy(text){
   navigator.clipboard.writeText(text);
-  const t = document.getElementById("toast");
+  const t=document.getElementById("toast");
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 800);
+  setTimeout(()=>t.classList.remove("show"),800);
 }
 
 /* ===== MUSIC ===== */
 const music = document.getElementById("music");
 const playBtn = document.getElementById("musicPlay");
+const toggle = document.getElementById("musicToggle");
+const panel = document.getElementById("musicPanel");
+const volume = document.getElementById("volume");
 
 let playing = localStorage.getItem("playing") === "true";
+let vol = localStorage.getItem("volume") || 0.5;
 
-if (playing) {
-  playBtn.src = "pause.png";
-  document.addEventListener("click", () => {
-    if (music.paused) music.play().catch(()=>{});
-  }, { once: true });
-} else {
-  playBtn.src = "play.png";
+music.volume = vol;
+volume.value = vol;
+
+toggle.onclick = (e) => {
+  e.stopPropagation();
+  panel.classList.toggle("show");
+};
+
+document.addEventListener("click", (e) => {
+  if (!panel.contains(e.target) && e.target !== toggle) {
+    panel.classList.remove("show");
+  }
+});
+
+function updateMusicUI(){
+  playBtn.src = playing ? "pause.png" : "play.png";
 }
+
+updateMusicUI();
 
 playBtn.onclick = () => {
   if (music.paused) {
-    music.play();
-    playBtn.src = "pause.png";
+    music.play().catch(()=>{});
     playing = true;
   } else {
     music.pause();
-    playBtn.src = "play.png";
     playing = false;
   }
   localStorage.setItem("playing", playing);
+  updateMusicUI();
 };
 
+volume.oninput = () => {
+  music.volume = volume.value;
+  localStorage.setItem("volume", volume.value);
+};
+
+if (playing) {
+  document.addEventListener("click", () => {
+    if (music.paused) music.play().catch(()=>{});
+  }, { once: true });
+}
+
 /* ===== LOAD ===== */
-function addParents(node, parent=null) {
+function addParents(node, parent=null){
   node.parent = parent;
-  if (node.children) {
-    node.children.forEach(child => addParents(child, node));
+  if(node.children){
+    node.children.forEach(c=>addParents(c,node));
   }
 }
 
 fetch("structure.json")
-.then(r => r.json())
-.then(data => {
-  root = data;
+.then(r=>r.json())
+.then(data=>{
+  root=data;
   addParents(root);
   render(root);
 });
