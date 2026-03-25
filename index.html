@@ -43,7 +43,6 @@ body::before {
   position: sticky;
   top: 0;
   z-index: 5;
-
   display: flex;
   padding: 8px 140px 8px 12px;
   background: rgba(255,255,255,0.06);
@@ -67,13 +66,6 @@ body::before {
   overflow-y: auto;
 }
 
-.file-list::-webkit-scrollbar {
-  width: 10px;
-}
-.file-list::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.25);
-}
-
 /* ===== СТРОКА ===== */
 .file {
   display: flex;
@@ -93,6 +85,8 @@ body::before {
 
 .icon {
   width: 18px;
+  height: 18px;
+  object-fit: contain;
   margin-right: 8px;
 }
 
@@ -102,18 +96,22 @@ body::before {
   bottom: 0;
   width: 100%;
   display: flex;
-  padding: 8px;
+  align-items: center;
+  padding: 8px 10px;
   background: rgba(255,255,255,0.06);
 }
 
 .search img {
-  width: 18px;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
   margin-right: 6px;
 }
 
 .search input {
   flex: 1;
-  padding: 8px;
+  padding: 6px 8px;
+  height: 28px;
   background: rgba(255,255,255,0.08);
   border: none;
   color: #ccc;
@@ -145,11 +143,9 @@ body::before {
   top: 50px;
   right: 12px;
   width: 180px;
-
   background: rgba(255,255,255,0.06);
   padding: 10px;
   border-radius: 6px;
-
   display: none;
   flex-direction: column;
   gap: 10px;
@@ -215,10 +211,8 @@ body::before {
 
 <script>
 let root, current, selected;
-let nameAsc = true;
-let sizeAsc = true;
+let currentPath = "";
 
-/* ===== DDNET LINKS ===== */
 const ddnetLinks = {
   "AIB Quest 4": "https://ddnet.org/maps/AIB-32-Quest-32-4",
   "Aufnahmetest 2": "https://ddnet.org/maps/Aufnahmetest-32-2",
@@ -227,28 +221,19 @@ const ddnetLinks = {
   "DatWay": "https://ddnet.org/maps/DatWay"
 };
 
-/* ===== SIZE ===== */
-function parseSize(s){
-  if(!s) return 0;
-  let [n,u]=s.split(" ");
-  n=parseFloat(n);
-  if(u==="MB") return n*1024;
-  return n;
-}
-
-/* ===== MAP NAME ===== */
-function getMapName(filename){
-  return filename.split("_")[0];
+function getMapName(name){
+  return name.split("_")[0];
 }
 
 /* ===== РЕНДЕР ===== */
-function render(folder){
+function render(folder, path=""){
   const el = document.getElementById("files");
   el.innerHTML="";
   current=folder;
+  currentPath = path;
 
   if(folder.parent){
-    el.appendChild(row("../","",()=>render(folder.parent),"tree.png"));
+    el.appendChild(row("../","",()=>render(folder.parent, path.split("/").slice(0,-1).join("/")),"tree.png"));
   }
 
   folder.children.forEach(item=>{
@@ -258,14 +243,17 @@ function render(folder){
 
     el.appendChild(row(item.name,item.size,()=>{
       if(item.type==="folder"){
-        render(item);
+        render(item, path + "/" + item.name);
       }else{
-        const map = getMapName(item.name);
-        if(ddnetLinks[map]){
-          window.open(ddnetLinks[map], "_blank");
-        }else{
-          copy(item.name);
+        // только если в demos
+        if(path.includes("demos")){
+          const map = getMapName(item.name);
+          if(ddnetLinks[map]){
+            window.open(ddnetLinks[map], "_blank");
+            return;
+          }
         }
+        copy(item.name);
       }
     },icon));
   });
@@ -291,51 +279,6 @@ function row(name,size,action,icon){
   return d;
 }
 
-/* ===== SEARCH ===== */
-document.getElementById("search").oninput=e=>{
-  const q=e.target.value.toLowerCase();
-  if(!q) return render(current);
-
-  const el=document.getElementById("files");
-  el.innerHTML="";
-
-  flatten(root).forEach(i=>{
-    if(i.name.toLowerCase().includes(q)){
-      el.appendChild(row(i.name,i.size,()=>{}, "file.png"));
-    }
-  });
-};
-
-document.getElementById("clear").onclick=()=>{
-  document.getElementById("search").value="";
-  render(current);
-};
-
-/* ===== SORT ===== */
-document.getElementById("header-name").onclick=()=>{
-  current.children.sort((a,b)=> nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
-  nameAsc=!nameAsc;
-  render(current);
-};
-
-document.getElementById("header-size").onclick=()=>{
-  current.children.sort((a,b)=> sizeAsc ? parseSize(a.size)-parseSize(b.size) : parseSize(b.size)-parseSize(a.size));
-  sizeAsc=!sizeAsc;
-  render(current);
-};
-
-/* ===== FLATTEN ===== */
-function flatten(n){
-  let arr=[];
-  if(n.children){
-    n.children.forEach(c=>{
-      arr.push(c);
-      if(c.children) arr=arr.concat(flatten(c));
-    });
-  }
-  return arr;
-}
-
 /* ===== COPY ===== */
 function copy(t){
   navigator.clipboard.writeText(t);
@@ -351,27 +294,32 @@ const panel=document.getElementById("musicPanel");
 const playBtn=document.getElementById("musicPlay");
 const volume=document.getElementById("volume");
 
-/* restore */
 volume.value = localStorage.getItem("vol") || 0.4;
 music.volume = volume.value;
 
-let playing = localStorage.getItem("playing")==="true";
-if(playing){
-  music.play().catch(()=>{});
-  playBtn.src="pause.png";
+let shouldPlay = localStorage.getItem("playing")==="true";
+let playing = false;
+
+/* фикс автоплея */
+if(shouldPlay){
+  document.addEventListener("click", () => {
+    if(!playing){
+      music.play().then(()=>{
+        playBtn.src="pause.png";
+        playing=true;
+      }).catch(()=>{});
+    }
+  }, { once: true });
 }
 
-/* toggle panel */
 toggle.onclick=()=> panel.classList.toggle("show");
 
-/* click outside */
 document.addEventListener("click", e=>{
   if(!panel.contains(e.target) && e.target!==toggle){
     panel.classList.remove("show");
   }
 });
 
-/* play */
 playBtn.onclick=()=>{
   if(!playing){
     music.play().catch(()=>{});
@@ -385,13 +333,12 @@ playBtn.onclick=()=>{
   localStorage.setItem("playing", playing);
 };
 
-/* volume */
 volume.oninput=()=>{
   music.volume=volume.value;
   localStorage.setItem("vol", volume.value);
 };
 
-/* ===== PARENTS ===== */
+/* ===== LOAD ===== */
 function link(n,p=null){
   n.parent=p;
   if(n.children) n.children.forEach(c=>link(c,n));
