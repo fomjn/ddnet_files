@@ -85,7 +85,6 @@ body::before {
   background: rgba(255,255,255,0.06);
 }
 
-/* ВЫДЕЛЕНИЕ (как в игре — мягкое) */
 .file.active {
   background: rgba(255,255,255,0.18);
   color: #fff;
@@ -127,6 +126,21 @@ body::before {
   outline: none;
 }
 
+.search button {
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.search button:hover {
+  background: rgba(255,255,255,0.15);
+}
+
 /* ===== TOAST ===== */
 .copy-toast {
   position: fixed;
@@ -158,6 +172,7 @@ body::before {
   <div class="search">
     <img src="loupe.png">
     <input id="search" placeholder="Search">
+    <button id="clear">×</button>
   </div>
 
 </div>
@@ -206,8 +221,9 @@ function render(folder) {
       : parseSize(b.size) - parseSize(a.size));
   }
 
+  // НАЗАД
   if (folder.parent) {
-    container.appendChild(createRow("..", "", () => render(folder.parent), "folder.png"));
+    container.appendChild(createRow("../", "", () => render(folder.parent), "tree.png"));
   }
 
   items.forEach(item => {
@@ -249,9 +265,15 @@ function createRow(name, size, action, icon) {
 }
 
 /* ===== SEARCH ===== */
-document.getElementById("search").oninput = e => {
+const searchInput = document.getElementById("search");
+
+searchInput.oninput = e => {
   const q = e.target.value.toLowerCase();
-  if (!q) return render(current);
+
+  if (!q) {
+    render(current);
+    return;
+  }
 
   const all = flatten(root);
   const container = document.getElementById("files");
@@ -267,6 +289,13 @@ document.getElementById("search").oninput = e => {
   });
 };
 
+/* КНОПКА ОЧИСТКИ */
+document.getElementById("clear").onclick = () => {
+  searchInput.value = "";
+  render(current);
+};
+
+/* ===== FLATTEN ===== */
 function flatten(node) {
   let arr = [];
   if (node.children) {
