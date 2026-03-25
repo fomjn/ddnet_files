@@ -177,6 +177,12 @@ body::before {
 }
 .copy-toast.show { opacity: 1; }
 
+.progress {
+  margin-left: 10px;
+  font-size: 0.9em;
+  color: #aaa;
+}
+
 </style>
 </head>
 
@@ -230,14 +236,20 @@ function render(folder, path=""){
     if (item.name.endsWith(".demo")) icon = "film.png";
 
     el.appendChild(
-      row(item.name, item.size || "", () => {
-        if (item.type === "folder") {
-          render(item, path + "/" + item.name);
-        } else {
-          copy(item.name);
-        }
-      }, icon)
-    );
+row(
+  item.type === "folder"
+    ? item.name + ` <span class="progress">(${countFiles(item)})</span>`
+    : item.name,
+  item.size || "",
+  () => {
+    if (item.type === "folder") {
+      render(item, path + "/" + item.name);
+    } else {
+      copy(item.name);
+    }
+  },
+  icon
+)
   });
 }
 
@@ -351,6 +363,18 @@ function copy(text){
   const t=document.getElementById("toast");
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"),800);
+}
+
+function countFiles(node){
+  if(!node.children) return 0;
+
+  let total = 0;
+  node.children.forEach(c=>{
+    if(c.type === "file") total++;
+    else total += countFiles(c);
+  });
+
+  return total;
 }
 
 /* ===== MUSIC ===== */
