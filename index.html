@@ -349,6 +349,56 @@ fetch("./structure.json")
     link(root);
     render(root);
   });
+
+/* ===== DDNET SCROLL ===== */
+const list = document.getElementById("files");
+
+let isDown = false;
+let startY = 0;
+let scrollTop = 0;
+let velocity = 0;
+let lastY = 0;
+let frame;
+
+/* DRAG */
+list.addEventListener("mousedown", e => {
+  isDown = true;
+  startY = e.clientY;
+  scrollTop = list.scrollTop;
+  velocity = 0;
+  lastY = e.clientY;
+});
+
+document.addEventListener("mouseup", () => {
+  isDown = false;
+
+  // инерция
+  cancelAnimationFrame(frame);
+  function inertia() {
+    if (Math.abs(velocity) < 0.1) return;
+    list.scrollTop -= velocity;
+    velocity *= 0.95;
+    frame = requestAnimationFrame(inertia);
+  }
+  inertia();
+});
+
+document.addEventListener("mousemove", e => {
+  if (!isDown) return;
+
+  const dy = e.clientY - startY;
+  list.scrollTop = scrollTop - dy;
+
+  velocity = e.clientY - lastY;
+  lastY = e.clientY;
+});
+
+/* WHEEL BOOST */
+list.addEventListener("wheel", e => {
+  e.preventDefault();
+  list.scrollTop += e.deltaY * 1.5;
+}, { passive: false });
+
 </script>
 
 </body>
