@@ -194,13 +194,20 @@ body::before {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.18);
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.25),
+    rgba(255,255,255,0.12)
+  );
   border-radius: 6px;
-  transition: 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.45),
+    rgba(255,255,255,0.2)
+  );
 }
 
 /* Firefox */
