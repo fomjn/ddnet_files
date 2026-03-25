@@ -41,24 +41,14 @@ body::before {
   flex-direction: column;
 }
 
-/* header с сортировкой */
+/* header */
 .header {
   display: flex;
-  padding: 6px 10px;
-  background: rgba(255,255,255,0.1); /* общий базовый цвет с поиском */
+  padding: 10px;
+  background: linear-gradient(#5f6368, #3a3d42);
 }
 
-.header-cell {
-  flex: 1;
-  padding: 6px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s;
-}
-
-.header-cell:hover {
-  background: rgba(255,255,255,0.2);
-}
+.header div { flex: 1; }
 
 /* список */
 .file-list {
@@ -90,13 +80,14 @@ body::before {
 }
 
 .size { flex: 1; }
+.date { flex: 2; }
 
 /* поиск */
 .search {
   display: flex;
   align-items: center;
   padding: 6px;
-  background: rgba(255,255,255,0.1); /* базовый фон одинаковый с заголовками */
+  background: #2a2d31;
 }
 
 .search img {
@@ -108,36 +99,20 @@ body::before {
 .search input {
   flex: 1;
   padding: 6px;
-  background: rgba(255,255,255,0.1); /* базовый фон */
+  background: rgba(255,255,255,0.1);
   border: none;
   color: #ccc;
   outline: none;
   caret-color: #fff;
-  transition: background 0.2s;
-}
-
-.search input:hover {
-  background: rgba(255,255,255,0.2);
 }
 
 .search button {
-  width: 24px;
-  height: 24px;
-  background: rgba(255,255,255,0.05);
+  background: none;
   border: none;
   color: #ccc;
   font-size: 16px;
   margin-left: 6px;
   cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background 0.2s;
-}
-
-.search button:hover {
-  background: rgba(255,255,255,0.2);
 }
 
 /* toast */
@@ -161,20 +136,42 @@ body::before {
 
 <div class="container">
 
-  <!-- Заголовки с сортировкой -->
   <div class="header">
-    <div id="header-name" class="header-cell sortable">Name</div>
-    <div id="header-size" class="header-cell sortable">Size</div>
+    <div>Name</div>
+    <div>Size</div>
+    <div>Date</div>
   </div>
 
   <div id="files" class="file-list"></div>
 
-  <!-- Поиск -->
-  <div class="search">
-    <img src="loupe.png" alt="Search">
-    <input id="search" placeholder="Search">
-    <button id="clear">×</button>
-  </div>
+<!-- SEARCH -->
+<div class="search">
+  <img src="loupe.png" alt="Search">
+  <input id="search" placeholder="Search">
+  <button id="clear">×</button>
+</div>
+
+<style>
+.search button {
+  width: 24px;
+  height: 24px;
+  background: rgba(255,255,255,0.05);
+  border: none;
+  color: #ccc;
+  font-size: 16px;
+  margin-left: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.search button:hover {
+  background: rgba(255,255,255,0.1);
+}
+</style>
 
 </div>
 
@@ -183,8 +180,6 @@ body::before {
 <script>
 let root = null;
 let current = null;
-let nameAsc = true;
-let sizeAsc = true;
 
 /* ===== РЕНДЕР ===== */
 function render(folder) {
@@ -212,7 +207,7 @@ function render(folder) {
       if (item.name.endsWith(".gho")) icon = "file.png";
 
       container.appendChild(
-        row(item.name, item.size || "", () => {
+        row(item.name, item.size  "", item.date  "", () => {
           navigator.clipboard.writeText(item.name);
           showToast();
         }, icon)
@@ -222,7 +217,7 @@ function render(folder) {
 }
 
 /* ===== СТРОКА ===== */
-function row(name, size, click, icon) {
+function row(name, size, date, click, icon) {
   const div = document.createElement("div");
   div.className = "file";
 
@@ -232,13 +227,14 @@ function row(name, size, click, icon) {
       ${name}
     </div>
     <div class="size">${size}</div>
+    <div class="date">${date}</div>
   `;
 
   div.onclick = click;
   return div;
 }
 
-/* ===== FLATTEN TREE ===== */
+  /* ===== ПОИСК ПО ВСЕМУ ДЕРЕВУ ===== */
 function flattenTree(node) {
   let arr = [];
   if (node.children) {
@@ -250,32 +246,24 @@ function flattenTree(node) {
   return arr;
 }
 
-/* ===== CONVERT SIZE TO BYTES ===== */
-function sizeToBytes(sizeStr) {
-  if (!sizeStr) return 0;
-  const units = { B: 1, KB: 1024, MB: 1024*1024, GB: 1024*1024*1024 };
-  const match = sizeStr.match(/([\d,.]+)\s*(B|KB|MB|GB)/i);
-  if (!match) return parseFloat(sizeStr) || 0;
-  let num = parseFloat(match[1].replace(',', '.'));
-  let unit = match[2].toUpperCase();
-  return num * (units[unit] || 1);
-}
-
-/* ===== SEARCH ===== */
+// ===== SEARCH =====
 const searchInput = document.getElementById("search");
 searchInput.addEventListener("input", e => {
   const q = e.target.value.toLowerCase();
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  if (!root || !current) return;
+  if (!root  !current) return;
 
   if (!q) {
-    render(current); // пустой поиск — текущая папка
+    // Пустой поиск — показываем текущую папку
+    render(current);
     return;
   }
 
+  // Поиск по всему дереву
   const allItems = flattenTree(root);
+
   allItems.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
       let icon = "file.png";
@@ -286,7 +274,8 @@ searchInput.addEventListener("input", e => {
       container.appendChild(
         row(
           item.name,
-          item.size || "",
+          item.size  "",
+          item.date || "",
           () => { if (item.type === "folder") render(item); },
           icon
         )
@@ -295,36 +284,10 @@ searchInput.addEventListener("input", e => {
   });
 });
 
-/* ===== CLEAR BUTTON ===== */
+// ===== CLEAR BUTTON =====
 document.getElementById("clear").onclick = () => {
   searchInput.value = "";
-  render(current);
-};
-
-/* ===== SORT BY NAME ===== */
-document.getElementById("header-name").onclick = () => {
-  if (!current || !current.children) return;
-
-  current.children.sort((a, b) => {
-    if (a.name.toLowerCase() < b.name.toLowerCase()) return nameAsc ? -1 : 1;
-    if (a.name.toLowerCase() > b.name.toLowerCase()) return nameAsc ? 1 : -1;
-    return 0;
-  });
-  nameAsc = !nameAsc;
-  render(current);
-};
-
-/* ===== SORT BY SIZE ===== */
-document.getElementById("header-size").onclick = () => {
-  if (!current || !current.children) return;
-
-  current.children.sort((a, b) => {
-    const sizeA = sizeToBytes(a.size);
-    const sizeB = sizeToBytes(b.size);
-    return sizeAsc ? sizeA - sizeB : sizeB - sizeA;
-  });
-  sizeAsc = !sizeAsc;
-  render(current);
+  render(current); // теперь рендерим текущую папку, а не весь корень
 };
 
 /* ===== PARENT LINKS ===== */
@@ -342,7 +305,7 @@ function showToast() {
   setTimeout(() => t.classList.remove("show"), 800);
 }
 
-/* ===== LOAD JSON ===== */
+/* ===== LOAD ===== */
 fetch("./structure.json")
   .then(r => r.json())
   .then(json => {
