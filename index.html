@@ -38,11 +38,14 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* HEADER */
+/* ===== HEADER ===== */
 .header {
+  position: sticky;
+  top: 0;
   display: flex;
   padding: 8px 120px 8px 12px;
   background: rgba(255,255,255,0.06);
+  z-index: 5;
 }
 
 .header-cell {
@@ -56,7 +59,7 @@ body::before {
 .header-name { flex: 3; }
 .header-size { flex: 1; max-width: 120px; text-align: right; }
 
-/* LIST */
+/* ===== LIST ===== */
 .file-list {
   height: calc(100% - 90px);
   overflow-y: auto;
@@ -73,6 +76,7 @@ body::before {
   flex: 3;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 
 .size {
@@ -86,9 +90,10 @@ body::before {
   width: 18px;
   height: 18px;
   margin-right: 8px;
+  object-fit: contain;
 }
 
-/* SEARCH */
+/* ===== SEARCH ===== */
 .search {
   position: fixed;
   bottom: 0;
@@ -102,7 +107,11 @@ body::before {
 .search img {
   width: 18px;
   height: 18px;
+  min-width: 18px;
+  object-fit: contain;
   margin-right: 8px;
+  display: block;
+  opacity: 0.8;
 }
 
 .search input {
@@ -119,18 +128,27 @@ body::before {
   color: #aaa;
   font-size: 18px;
   cursor: pointer;
-}
-.search button:hover {
-  color: #fff;
+  transition: 0.2s;
 }
 
-/* MUSIC */
+.search button:hover {
+  color: #fff;
+  transform: scale(1.15);
+}
+
+/* ===== MUSIC ===== */
 .music-btn {
   position: fixed;
   top: 10px;
   right: 12px;
   width: 28px;
-  cursor: pointer;
+  z-index: 20;
+  transition: 0.2s;
+}
+
+.music-btn:hover {
+  filter: brightness(1.6);
+  transform: scale(1.05);
 }
 
 .music-panel {
@@ -143,10 +161,11 @@ body::before {
   display: none;
   flex-direction: column;
   gap: 10px;
+  z-index: 20;
 }
 .music-panel.show { display: flex; }
 
-/* TOAST */
+/* ===== TOAST ===== */
 .copy-toast {
   position: fixed;
   bottom: 60px;
@@ -202,99 +221,123 @@ function render(folder, path=""){
 
   if (folder.parent) {
     const newPath = path.split("/").slice(0, -1).join("/");
-    el.appendChild(row("../","",()=>render(folder.parent,newPath),"tree.png"));
+    el.appendChild(row("../", "", () => render(folder.parent, newPath), "tree.png"));
   }
 
-  folder.children.forEach(item=>{
-    let icon="file.png";
-    if(item.type==="folder") icon="folder.png";
-    if(item.name.endsWith(".demo")) icon="film.png";
+  folder.children.forEach(item => {
+    let icon = "file.png";
+    if (item.type === "folder") icon = "folder.png";
+    if (item.name.endsWith(".demo")) icon = "film.png";
 
-    el.appendChild(row(item.name,item.size||"",()=>{
-      if(item.type==="folder"){
-        render(item,path+"/"+item.name);
-      }else{
-        copy(item.name);
-      }
-    },icon));
+    el.appendChild(
+      row(item.name, item.size || "", () => {
+        if (item.type === "folder") {
+          render(item, path + "/" + item.name);
+        } else {
+          copy(item.name);
+        }
+      }, icon)
+    );
   });
 }
 
 /* ===== ROW ===== */
-function row(name,size,action,icon){
-  const d=document.createElement("div");
-  d.className="file";
+function row(name, size, action, icon){
+  const d = document.createElement("div");
+  d.className = "file";
 
-  d.innerHTML=`
+  d.innerHTML = `
     <div class="name">
       <img class="icon" src="${icon}">
       ${name}
     </div>
-    <div class="size">${size||""}</div>
+    <div class="size">${size || ""}</div>
   `;
 
-  d.onclick=()=>{
-    if(selected) selected.classList.remove("active");
+  d.onclick = () => {
+    if (selected) selected.classList.remove("active");
     d.classList.add("active");
-    selected=d;
+    selected = d;
   };
 
-  d.ondblclick=action;
+  d.ondblclick = action;
   return d;
 }
 
 /* ===== SEARCH ===== */
-const searchInput=document.getElementById("search");
+const searchInput = document.getElementById("search");
 
-searchInput.oninput=e=>{
-  const q=e.target.value.toLowerCase();
-  const el=document.getElementById("files");
-  el.innerHTML="";
+searchInput.oninput = e => {
+  const q = e.target.value.toLowerCase();
+  const el = document.getElementById("files");
+  el.innerHTML = "";
 
-  if(!q){
-    render(current,currentPath);
+  if (!q) {
+    render(current, currentPath);
     return;
   }
 
-  flatten(root).forEach(item=>{
-    if(item.type==="file" && item.name.toLowerCase().includes(q)){
-      let icon=item.name.endsWith(".demo")?"film.png":"file.png";
-      el.appendChild(row(item.name,item.size||"",()=>copy(item.name),icon));
+  flatten(root).forEach(item => {
+    if (
+      item.type === "file" &&
+      (item.name.endsWith(".demo") || item.name.endsWith(".gho")) &&
+      item.name.toLowerCase().includes(q)
+    ) {
+      let icon = item.name.endsWith(".demo") ? "film.png" : "file.png";
+
+      el.appendChild(row(item.name, item.size || "", () => {
+        copy(item.name);
+      }, icon));
     }
   });
 };
 
-document.getElementById("clear").onclick=()=>{
-  searchInput.value="";
-  render(current,currentPath);
+document.getElementById("clear").onclick = () => {
+  searchInput.value = "";
+  render(current, currentPath);
 };
 
 /* ===== SORT ===== */
-let nameAsc=true,sizeAsc=true;
+let nameAsc = true;
+let sizeAsc = true;
 
-header-name.onclick=()=>{
+document.getElementById("header-name").onclick = () => {
+  if (!current || !current.children) return;
+
   current.children.sort((a,b)=>
-    nameAsc?a.name.localeCompare(b.name):b.name.localeCompare(a.name)
+    nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
   );
-  nameAsc=!nameAsc;
-  render(current,currentPath);
+
+  nameAsc = !nameAsc;
+  render(current, currentPath);
 };
 
-header-size.onclick=()=>{
+document.getElementById("header-size").onclick = () => {
+  if (!current || !current.children) return;
+
   current.children.sort((a,b)=>{
-    const sa=parseFloat(a.size)||0;
-    const sb=parseFloat(b.size)||0;
-    return sizeAsc?sa-sb:sb-sa;
+    const sa = parseSize(a.size);
+    const sb = parseSize(b.size);
+    return sizeAsc ? sa - sb : sb - sa;
   });
-  sizeAsc=!sizeAsc;
-  render(current,currentPath);
+
+  sizeAsc = !sizeAsc;
+  render(current, currentPath);
 };
 
-/* ===== HELPERS ===== */
-function flatten(n){
+function parseSize(s){
+  if(!s) return 0;
+  let n = parseFloat(s);
+  if(s.includes("MB")) return n * 1024;
+  if(s.includes("KB")) return n;
+  return n;
+}
+
+/* ===== FLATTEN ===== */
+function flatten(node){
   let arr=[];
-  if(n.children){
-    n.children.forEach(c=>{
+  if(node.children){
+    node.children.forEach(c=>{
       if(c.type==="file") arr.push(c);
       if(c.children) arr=arr.concat(flatten(c));
     });
@@ -302,70 +345,80 @@ function flatten(n){
   return arr;
 }
 
-function copy(t){
-  navigator.clipboard.writeText(t);
-  const toast=document.getElementById("toast");
-  toast.classList.add("show");
-  setTimeout(()=>toast.classList.remove("show"),800);
+/* ===== COPY ===== */
+function copy(text){
+  navigator.clipboard.writeText(text);
+  const t=document.getElementById("toast");
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),800);
 }
 
 /* ===== MUSIC ===== */
-const music=document.getElementById("music");
-const toggle=document.getElementById("musicToggle");
-const panel=document.getElementById("musicPanel");
-const playBtn=document.getElementById("musicPlay");
-const volume=document.getElementById("volume");
+const music = document.getElementById("music");
+const playBtn = document.getElementById("musicPlay");
+const toggle = document.getElementById("musicToggle");
+const panel = document.getElementById("musicPanel");
+const volume = document.getElementById("volume");
 
-let playing=localStorage.getItem("playing")==="true";
-let vol=localStorage.getItem("volume")||0.5;
+let playing = localStorage.getItem("playing") === "true";
+let vol = localStorage.getItem("volume") || 0.5;
 
-music.volume=vol;
-volume.value=vol;
+music.volume = vol;
+volume.value = vol;
 
-toggle.onclick=e=>{
+toggle.onclick = (e) => {
   e.stopPropagation();
   panel.classList.toggle("show");
 };
 
-document.addEventListener("click",e=>{
-  if(!panel.contains(e.target)&&e.target!==toggle){
+document.addEventListener("click", (e) => {
+  if (!panel.contains(e.target) && e.target !== toggle) {
     panel.classList.remove("show");
   }
 });
 
-function updateMusic(){
-  playBtn.src=playing?"pause.png":"play.png";
+function updateMusicUI(){
+  playBtn.src = playing ? "pause.png" : "play.png";
 }
-updateMusic();
 
-playBtn.onclick=()=>{
-  if(music.paused){
+updateMusicUI();
+
+playBtn.onclick = () => {
+  if (music.paused) {
     music.play().catch(()=>{});
-    playing=true;
-  }else{
+    playing = true;
+  } else {
     music.pause();
-    playing=false;
+    playing = false;
   }
-  localStorage.setItem("playing",playing);
-  updateMusic();
+  localStorage.setItem("playing", playing);
+  updateMusicUI();
 };
 
-volume.oninput=()=>{
-  music.volume=volume.value;
-  localStorage.setItem("volume",volume.value);
+volume.oninput = () => {
+  music.volume = volume.value;
+  localStorage.setItem("volume", volume.value);
 };
+
+if (playing) {
+  document.addEventListener("click", () => {
+    if (music.paused) music.play().catch(()=>{});
+  }, { once: true });
+}
 
 /* ===== LOAD ===== */
-function link(node,parent=null){
-  node.parent=parent;
-  if(node.children) node.children.forEach(c=>link(c,node));
+function addParents(node, parent=null){
+  node.parent = parent;
+  if(node.children){
+    node.children.forEach(c=>addParents(c,node));
+  }
 }
 
 fetch("structure.json")
 .then(r=>r.json())
 .then(data=>{
   root=data;
-  link(root);
+  addParents(root);
   render(root);
 });
 </script>
