@@ -7,12 +7,20 @@
 <link rel="icon" href="logo.png">
 
 <style>
-* { box-sizing: border-box; cursor: url("cursor.png") 0 0, auto !important; }
+@font-face {
+  font-family: "DDNet";
+  src: url("Font_Awesome_6_Free-Solid-900.otf");
+}
+
+* {
+  box-sizing: border-box;
+  cursor: url("cursor.png") 0 0, auto !important;
+}
 
 html, body {
   margin: 0;
   height: 100%;
-  font-family: Arial;
+  font-family: "DDNet", Arial;
   color: #ddd;
 }
 
@@ -44,10 +52,9 @@ body::before {
 /* ===== HEADER ===== */
 .header {
   display: flex;
-  padding: 6px;
-  background: rgba(42,45,49,0.6);
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.08);
   backdrop-filter: blur(4px);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .header-cell {
@@ -55,12 +62,15 @@ body::before {
   padding: 6px;
   cursor: pointer;
   user-select: none;
-  color: #ccc;
-  border-radius: 4px;
+  transition: background 0.2s;
 }
 
 .header-cell:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.15);
+}
+
+.header-cell.active {
+  background: rgba(255,255,255,0.2);
 }
 
 /* ===== СПИСОК ===== */
@@ -92,14 +102,16 @@ body::before {
   text-overflow: ellipsis;
 }
 
-.size { flex: 1; }
+.size {
+  flex: 1;
+}
 
 /* ===== SEARCH ===== */
 .search {
   display: flex;
   align-items: center;
   padding: 6px;
-  background: rgba(42,45,49,0.6);
+  background: rgba(255,255,255,0.08);
   backdrop-filter: blur(4px);
 }
 
@@ -111,26 +123,10 @@ body::before {
 .search input {
   flex: 1;
   padding: 6px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.1);
   border: none;
   color: #ccc;
   outline: none;
-  caret-color: #fff;
-}
-
-.search button {
-  width: 24px;
-  height: 24px;
-  background: rgba(255,255,255,0.05);
-  border: none;
-  color: #ccc;
-  font-size: 16px;
-  margin-left: 6px;
-  border-radius: 4px;
-}
-
-.search button:hover {
-  background: rgba(255,255,255,0.1);
 }
 
 /* ===== TOAST ===== */
@@ -146,6 +142,7 @@ body::before {
 }
 
 .copy-toast.show { opacity: 1; }
+
 </style>
 </head>
 
@@ -163,7 +160,6 @@ body::before {
   <div class="search">
     <img src="loupe.png">
     <input id="search" placeholder="Search">
-    <button id="clear">×</button>
   </div>
 
 </div>
@@ -174,189 +170,156 @@ body::before {
 let root = null;
 let current = null;
 
-let nameAsc = true;
-let sizeAsc = true;
+let selectedElement = null;
+let sortMode = null;
+let sortAsc = true;
 
 /* ===== SIZE PARSER ===== */
 function parseSize(size) {
   if (!size) return 0;
 
-  const parts = size.split(" ");
-  const value = parseFloat(parts[0]);
-  const unit = parts[1]?.toUpperCase();
+  let [num, unit] = size.split(" ");
+  num = parseFloat(num);
 
-  if (unit === "KB") return value * 1024;
-  if (unit === "MB") return value * 1024 * 1024;
-  if (unit === "GB") return value * 1024 * 1024 * 1024;
+  if (unit === "KB") return num;
+  if (unit === "MB") return num * 1024;
+  if (unit === "GB") return num * 1024 * 1024;
 
-  return value;
+  return num;
 }
 
-/* ===== SORT INDICATORS ===== */
-function updateSortIndicators(active, asc) {
-  document.getElementById("header-name").textContent = "Name";
-  document.getElementById("header-size").textContent = "Size";
-
-  const arrow = asc ? " ▲" : " ▼";
-
-  if (active === "name") {
-    document.getElementById("header-name").textContent += arrow;
-  } else {
-    document.getElementById("header-size").textContent += arrow;
-  }
-}
-
-/* ===== ROW ===== */
-function row(name, size, click, icon = null) {
-  const div = document.createElement("div");
-  div.className = "file";
-
-  div.innerHTML = `
-    <div class="name">
-      ${icon ? `<img src="${icon}" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;">` : ""}
-      ${name}
-    </div>
-    <div class="size">${size}</div>
-  `;
-
-  div.onclick = click;
-  return div;
-}
-
-/* ===== RENDER ===== */
+/* ===== РЕНДЕР ===== */
 function render(folder) {
   const container = document.getElementById("files");
   container.innerHTML = "";
   current = folder;
 
-  if (!folder.children) return;
+  let items = [...folder.children];
 
-  // назад
-  if (folder.parent) {
-    container.appendChild(
-      row("..", "", () => render(folder.parent), "tree.png")
-    );
+  if (sortMode === "name") {
+    items.sort((a,b) => sortAsc
+      ? a.name.localeCompare(b.name)
+      : b.name.localeCompare(a.name));
   }
 
-  folder.children.forEach(item => {
+  if (sortMode === "size") {
+    items.sort((a,b) => sortAsc
+      ? parseSize(a.size) - parseSize(b.size)
+      : parseSize(b.size) - parseSize(a.size));
+  }
 
-    if (item.type === "folder") {
-      container.appendChild(
-        row(item.name, "", () => render(item), "folder.png")
-      );
-    }
+  if (folder.parent) {
+    container.appendChild(createRow("..", "", () => render(folder.parent), "folder.png"));
+  }
 
-    else if (item.type === "file") {
-      let icon = "file.png";
+  items.forEach(item => {
+    let icon = "file.png";
+    if (item.type === "folder") icon = "folder.png";
+    if (item.name.endsWith(".demo")) icon = "film.png";
 
-      if (item.name.endsWith(".demo")) icon = "film.png";
-      if (item.name.endsWith(".gho")) icon = "file.png";
+    const row = createRow(item.name, item.size || "", () => {
+      if (item.type === "folder") render(item);
+      else copy(item.name);
+    }, icon);
 
-      container.appendChild(
-        row(item.name, item.size || "", () => {
-          navigator.clipboard.writeText(item.name);
-          showToast();
-        }, icon)
-      );
-    }
-
+    container.appendChild(row);
   });
 }
 
+/* ===== СТРОКА ===== */
+function createRow(name, size, action, icon) {
+  const div = document.createElement("div");
+  div.className = "file";
+
+  div.innerHTML = `
+    <div class="name">
+      <img src="${icon}" width="16" style="margin-right:6px;">
+      ${name}
+    </div>
+    <div class="size">${size}</div>
+  `;
+
+  div.onclick = () => {
+    if (selectedElement) selectedElement.classList.remove("active");
+    div.classList.add("active");
+    selectedElement = div;
+  };
+
+  div.ondblclick = action;
+
+  return div;
+}
+
 /* ===== SEARCH ===== */
-document.getElementById("search").addEventListener("input", e => {
+document.getElementById("search").oninput = e => {
   const q = e.target.value.toLowerCase();
   if (!q) return render(current);
 
+  const all = flatten(root);
   const container = document.getElementById("files");
   container.innerHTML = "";
 
-  const all = flatten(root);
-
   all.forEach(item => {
     if (item.name.toLowerCase().includes(q)) {
-
-      let icon = "file.png";
-      if (item.type === "folder") icon = "folder.png";
+      let icon = item.type === "folder" ? "folder.png" : "file.png";
       if (item.name.endsWith(".demo")) icon = "film.png";
-      if (item.name.endsWith(".gho")) icon = "file.png";
 
-      container.appendChild(
-        row(item.name, item.size || "", () => {
-          if (item.type === "folder") render(item);
-        }, icon)
-      );
+      container.appendChild(createRow(item.name, item.size, () => {}, icon));
     }
   });
-});
+};
 
-/* ===== FLATTEN ===== */
 function flatten(node) {
   let arr = [];
   if (node.children) {
-    node.children.forEach(child => {
-      arr.push(child);
-      if (child.children) arr = arr.concat(flatten(child));
+    node.children.forEach(c => {
+      arr.push(c);
+      if (c.children) arr = arr.concat(flatten(c));
     });
   }
   return arr;
 }
 
-/* ===== CLEAR ===== */
-document.getElementById("clear").onclick = () => {
-  document.getElementById("search").value = "";
-  render(current);
-};
-
-/* ===== SORT NAME ===== */
-document.getElementById("header-name").onclick = () => {
-  current.children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-
-    return nameAsc
-      ? a.name.localeCompare(b.name)
-      : b.name.localeCompare(a.name);
-  });
-
-  updateSortIndicators("name", nameAsc);
-  nameAsc = !nameAsc;
-  render(current);
-};
-
-/* ===== SORT SIZE ===== */
-document.getElementById("header-size").onclick = () => {
-  current.children.sort((a, b) => {
-    return sizeAsc
-      ? parseSize(a.size) - parseSize(b.size)
-      : parseSize(b.size) - parseSize(a.size);
-  });
-
-  updateSortIndicators("size", sizeAsc);
-  sizeAsc = !sizeAsc;
-  render(current);
-};
-
-/* ===== PARENTS ===== */
-function linkParents(node, parent=null) {
-  node.parent = parent;
-  if (node.children) {
-    node.children.forEach(child => linkParents(child, node));
-  }
+/* ===== SORT ===== */
+function setActiveHeader(id) {
+  document.querySelectorAll(".header-cell").forEach(h => h.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
 }
 
-/* ===== TOAST ===== */
-function showToast() {
+document.getElementById("header-name").onclick = () => {
+  sortMode = "name";
+  sortAsc = !sortAsc;
+  setActiveHeader("header-name");
+  render(current);
+};
+
+document.getElementById("header-size").onclick = () => {
+  sortMode = "size";
+  sortAsc = !sortAsc;
+  setActiveHeader("header-size");
+  render(current);
+};
+
+/* ===== COPY ===== */
+function copy(text) {
+  navigator.clipboard.writeText(text);
   const t = document.getElementById("toast");
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 800);
 }
 
+/* ===== PARENTS ===== */
+function link(node, parent=null) {
+  node.parent = parent;
+  if (node.children) node.children.forEach(c => link(c, node));
+}
+
 /* ===== LOAD ===== */
 fetch("./structure.json")
   .then(r => r.json())
-  .then(json => {
-    root = json;
-    linkParents(root);
+  .then(data => {
+    root = data;
+    link(root);
     render(root);
   });
 </script>
