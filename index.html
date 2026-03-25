@@ -7,7 +7,11 @@
 <link rel="icon" href="logo.png">
 
 <style>
-* { box-sizing: border-box; cursor: url("cursor.png") 0 0, auto !important; user-select: none; }
+* {
+  box-sizing: border-box;
+  cursor: url("cursor.png") 0 0, auto !important;
+  user-select: none;
+}
 
 html, body {
   margin: 0;
@@ -17,7 +21,7 @@ html, body {
   overflow: hidden;
 }
 
-/* фон */
+/* ===== ФОН ===== */
 body::before {
   content: "";
   position: fixed;
@@ -34,7 +38,7 @@ body::before {
   to { background-position: 0 128px; }
 }
 
-/* header */
+/* ===== HEADER ===== */
 .header {
   position: sticky;
   top: 0;
@@ -43,13 +47,18 @@ body::before {
   background: rgba(255,255,255,0.06);
 }
 
-.header-cell { padding: 6px; cursor: pointer; }
-.header-cell:hover { background: rgba(255,255,255,0.15); }
+.header-cell {
+  padding: 6px;
+  cursor: pointer;
+}
+.header-cell:hover {
+  background: rgba(255,255,255,0.15);
+}
 
 .header-name { flex: 3; }
 .header-size { flex: 1; max-width: 120px; text-align: right; }
 
-/* список */
+/* ===== СПИСОК ===== */
 .file-list {
   height: calc(100% - 90px);
   overflow-y: auto;
@@ -62,12 +71,39 @@ body::before {
 .file:hover { background: rgba(255,255,255,0.08); }
 .file.active { background: rgba(255,255,255,0.18); }
 
-.name { flex: 3; overflow: hidden; white-space: nowrap; }
-.size { flex: 1; max-width: 120px; text-align: right; color: #aaa; }
+.name {
+  flex: 3;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
 
-.icon { width: 18px; margin-right: 8px; }
+.size {
+  flex: 1;
+  max-width: 120px;
+  text-align: right;
+  color: #aaa;
+}
 
-/* search */
+.progress {
+  margin-left: auto;
+  margin-right: 10px;
+  font-size: 0.9em;
+}
+
+.progress.green { color: #4cff7a; }
+.progress.yellow { color: #ffd24c; }
+.progress.red { color: #ff5c5c; }
+
+.icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  margin-right: 8px;
+}
+
+/* ===== SEARCH ===== */
 .search {
   position: fixed;
   bottom: 0;
@@ -77,7 +113,12 @@ body::before {
   background: rgba(255,255,255,0.06);
 }
 
-.search img { width: 16px; margin-right: 6px; }
+.search img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  margin-right: 6px;
+}
 
 .search input {
   flex: 1;
@@ -96,12 +137,13 @@ body::before {
 }
 .search button:hover { color: #fff; }
 
-/* музыка */
+/* ===== MUSIC ===== */
 .music-btn {
   position: fixed;
   top: 10px;
   right: 12px;
   width: 28px;
+  z-index: 10;
 }
 
 .music-panel {
@@ -117,7 +159,7 @@ body::before {
 }
 .music-panel.show { display: flex; }
 
-/* toast */
+/* ===== TOAST ===== */
 .copy-toast {
   position: fixed;
   bottom: 60px;
@@ -128,6 +170,7 @@ body::before {
   opacity: 0;
 }
 .copy-toast.show { opacity: 1; }
+
 </style>
 </head>
 
@@ -178,20 +221,41 @@ const mapLimits = {
   "demos/Unique/4 - Fastcap": 86
 };
 
+/* DDNET LINKS */
+const ddnetLinks = {
+  "AIB Quest 4": "https://ddnet.org/maps/AIB-32-Quest-32-4",
+  "Aufnahmetest 2": "https://ddnet.org/maps/Aufnahmetest-32-2",
+  "Aufnahmetest 3": "https://ddnet.org/maps/Aufnahmetest-32-3",
+  "Aufnahmetest": "https://ddnet.org/maps/Aufnahmetest",
+  "DatWay": "https://ddnet.org/maps/DatWay"
+};
+
+function getMapName(name){
+  return name.split("_")[0];
+}
+
 /* счет */
 function countFiles(folder){
   return folder.children?.filter(f=>f.type==="file").length || 0;
 }
 
 function countAll(folder){
-  let c = 0;
+  let c=0;
   if(folder.children){
     folder.children.forEach(f=>{
       if(f.type==="file") c++;
-      else c += countAll(f);
+      else c+=countAll(f);
     });
   }
   return c;
+}
+
+/* цвет прогресса */
+function getProgressClass(cur,max){
+  const p = cur/max;
+  if(p >= 1) return "green";
+  if(p >= 0.7) return "yellow";
+  return "red";
 }
 
 /* render */
@@ -206,25 +270,36 @@ function render(folder, path=""){
   }
 
   folder.children.forEach(item=>{
-    let display = item.name;
+    let progressHTML = "";
 
     if(item.type==="folder"){
       const full = (path+"/"+item.name).replace(/^\/+/,"");
       let count = path==="" ? countAll(item) : countFiles(item);
       let max = mapLimits[full];
 
-      if(max) display += ` (${count} / ${max})`;
-      else if(count>0) display += ` (${count})`;
+      if(max){
+        const cls = getProgressClass(count,max);
+        progressHTML = `<span class="progress ${cls}">(${count} / ${max})</span>`;
+      }else if(count>0){
+        progressHTML = `<span class="progress">(${count})</span>`;
+      }
     }
 
     let icon="file.png";
     if(item.type==="folder") icon="folder.png";
     if(item.name.endsWith(".demo")) icon="film.png";
 
-    el.appendChild(row(display,item.size,()=>{
+    el.appendChild(row(item.name,item.size,progressHTML,()=>{
       if(item.type==="folder"){
         render(item, path+"/"+item.name);
       }else{
+        if(path.includes("demos") && path.includes("Rank 1s")){
+          const map = getMapName(item.name);
+          if(ddnetLinks[map]){
+            window.open(ddnetLinks[map], "_blank");
+            return;
+          }
+        }
         copy(item.name);
       }
     },icon));
@@ -232,12 +307,16 @@ function render(folder, path=""){
 }
 
 /* row */
-function row(name,size,action,icon){
+function row(name,size,progress,action,icon){
   const d=document.createElement("div");
   d.className="file";
 
   d.innerHTML=`
-    <div class="name"><img class="icon" src="${icon}">${name}</div>
+    <div class="name">
+      <img class="icon" src="${icon}">
+      ${name}
+      ${progress || ""}
+    </div>
     <div class="size">${size||""}</div>
   `;
 
@@ -249,65 +328,6 @@ function row(name,size,action,icon){
 
   d.ondblclick=action;
   return d;
-}
-
-/* поиск */
-document.getElementById("search").oninput=e=>{
-  const q=e.target.value.toLowerCase();
-
-  if(!q) return render(current,currentPath);
-
-  const el=document.getElementById("files");
-  el.innerHTML="";
-
-  flatten(root).forEach(item=>{
-    if(item.name.toLowerCase().includes(q)){
-      let icon=item.type==="folder"?"folder.png":"file.png";
-      if(item.name.endsWith(".demo")) icon="film.png";
-
-      el.appendChild(row(item.name,item.size||"",()=>{
-        if(item.type==="folder") render(item);
-      },icon));
-    }
-  });
-};
-
-document.getElementById("clear").onclick=()=>{
-  document.getElementById("search").value="";
-  render(current,currentPath);
-};
-
-/* сортировка */
-function parseSize(s){
-  if(!s) return 0;
-  let [n,u]=s.split(" ");
-  n=parseFloat(n);
-  if(u==="MB") return n*1024;
-  return n;
-}
-
-document.getElementById("header-name").onclick=()=>{
-  current.children.sort((a,b)=> nameAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
-  nameAsc=!nameAsc;
-  render(current,currentPath);
-};
-
-document.getElementById("header-size").onclick=()=>{
-  current.children.sort((a,b)=> sizeAsc ? parseSize(a.size)-parseSize(b.size) : parseSize(b.size)-parseSize(a.size));
-  sizeAsc=!sizeAsc;
-  render(current,currentPath);
-};
-
-/* flatten */
-function flatten(n){
-  let arr=[];
-  if(n.children){
-    n.children.forEach(c=>{
-      arr.push(c);
-      if(c.children) arr=arr.concat(flatten(c));
-    });
-  }
-  return arr;
 }
 
 /* copy */
@@ -328,25 +348,16 @@ const volume=document.getElementById("volume");
 volume.value=localStorage.getItem("vol")||0.4;
 music.volume=volume.value;
 
-let playing=localStorage.getItem("playing")==="true";
-
-if(playing){
-  music.play().then(()=>playBtn.src="pause.png").catch(()=>playing=false);
-}
-
 toggle.onclick=()=>panel.classList.toggle("show");
 
 playBtn.onclick=()=>{
-  if(!playing){
+  if(music.paused){
     music.play();
     playBtn.src="pause.png";
-    playing=true;
   }else{
     music.pause();
     playBtn.src="play.png";
-    playing=false;
   }
-  localStorage.setItem("playing",playing);
 };
 
 volume.oninput=()=>{
